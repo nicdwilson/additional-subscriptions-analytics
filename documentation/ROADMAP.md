@@ -422,6 +422,18 @@ auth rejection, and empty-table/backfill-needed behavior.
 
 ### Phase 8 - Admin Menu, Sync Status & Client Report  *(~3 days)*
 
+**Status:** Complete. The report is registered under WooCommerce Analytics at
+`/analytics/upcoming-renewals`, admin/runtime sync status is exposed for missing
+tables, running/failed backfills, and stale data, and the WooCommerce Admin
+client registers an Upcoming renewals report with Next Friday, Next 7 days, and
+Next 30 days presets. The report renders product-level upcoming renewal counts
+from the Phase 7 Analytics endpoint, supports sorting/pagination, and exports
+CSV from the visible table or the report export endpoint. Integration coverage
+exercises menu registration and sync states; Playwright coverage is present for
+report navigation, date-window changes, sorting, CSV download, and sync notices,
+with a local skip when the mounted WooCommerce checkout has not built its admin
+asset registry.
+
 - `Admin/Menu.php`: add the report under WooCommerce -> Analytics
   (`id: asa-upcoming-renewals`, `path: /analytics/upcoming-renewals`).
 - `Admin/SyncStatus.php`: show admin notices/status when tables are missing,

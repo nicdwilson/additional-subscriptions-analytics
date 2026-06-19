@@ -190,6 +190,24 @@ function sanitize_text_field( string $str ): string {}
 function esc_html( string $text ): string {}
 
 /**
+ * Escape an HTML attribute.
+ *
+ * @param string $text Source text.
+ *
+ * @return string
+ */
+function esc_attr( string $text ): string {}
+
+/**
+ * Remove WordPress-added slashes.
+ *
+ * @param mixed $value Source value.
+ *
+ * @return mixed
+ */
+function wp_unslash( mixed $value ): mixed {}
+
+/**
  * Get a plugin filesystem path.
  *
  * @param string $file Plugin file.
@@ -296,6 +314,63 @@ function sanitize_key( string $key ): string {}
  * @return bool
  */
 function delete_option( string $option ): bool {}
+
+/**
+ * Get an admin URL.
+ *
+ * @param string $path Admin path.
+ *
+ * @return string
+ */
+function admin_url( string $path = '' ): string {}
+
+/**
+ * Enqueue a script.
+ *
+ * @param string            $handle    Script handle.
+ * @param string            $src       Script URL.
+ * @param array<int,string> $deps      Dependencies.
+ * @param string|bool|null  $ver       Version.
+ * @param bool              $in_footer Whether to print in footer.
+ *
+ * @return void
+ */
+function wp_enqueue_script(
+	string $handle,
+	string $src = '',
+	array $deps = array(),
+	string|bool|null $ver = false,
+	bool $in_footer = false
+): void {}
+
+/**
+ * Set script translations.
+ *
+ * @param string $handle Script handle.
+ * @param string $domain Text domain.
+ * @param string $path   Language path.
+ *
+ * @return bool
+ */
+function wp_set_script_translations( string $handle, string $domain = 'default', string $path = '' ): bool {}
+
+/**
+ * Localize script data.
+ *
+ * @param string              $handle      Script handle.
+ * @param string              $object_name Object name.
+ * @param array<string,mixed> $l10n        Data.
+ *
+ * @return bool
+ */
+function wp_localize_script( string $handle, string $object_name, array $l10n ): bool {}
+
+/**
+ * Get the current admin screen.
+ *
+ * @return WP_Screen|null
+ */
+function get_current_screen(): ?WP_Screen {}
 
 /**
  * Load a plugin text domain.
@@ -413,6 +488,19 @@ function get_edit_post_link( int $post_id, string $context = 'display' ): ?strin
  * @return string|false
  */
 function get_permalink( int $post_id ): string|false {}
+
+/**
+ * Admin screen.
+ */
+class WP_Screen {
+
+	/**
+	 * Screen ID.
+	 *
+	 * @var string
+	 */
+	public string $id = '';
+}
 
 /**
  * Unschedule Action Scheduler actions.

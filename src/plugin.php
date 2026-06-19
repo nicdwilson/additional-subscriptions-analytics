@@ -8,6 +8,8 @@
 
 namespace AdditionalSubscriptionsAnalytics;
 
+use AdditionalSubscriptionsAnalytics\Admin\Menu;
+use AdditionalSubscriptionsAnalytics\Admin\SyncStatus;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller as UpcomingRenewalsController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\DataStore as UpcomingRenewalsDataStore;
 use AdditionalSubscriptionsAnalytics\Database\Migrator;
@@ -54,6 +56,20 @@ final class Plugin {
 	private SyncHooks $sync_hooks;
 
 	/**
+	 * Admin sync status service.
+	 *
+	 * @var SyncStatus
+	 */
+	private SyncStatus $sync_status;
+
+	/**
+	 * WooCommerce Admin menu service.
+	 *
+	 * @var Menu
+	 */
+	private Menu $admin_menu;
+
+	/**
 	 * Get the singleton instance.
 	 *
 	 * @since 0.1.0
@@ -77,6 +93,8 @@ final class Plugin {
 		$this->backfill_scheduler = new BackfillScheduler();
 		$this->repair_commands    = new RepairCommands( $this->backfill_scheduler );
 		$this->sync_hooks         = new SyncHooks();
+		$this->sync_status        = new SyncStatus();
+		$this->admin_menu         = new Menu( $this->sync_status );
 
 		$this->init_hooks();
 	}
@@ -98,6 +116,8 @@ final class Plugin {
 		$this->backfill_scheduler->init_hooks();
 		$this->repair_commands->init_hooks();
 		$this->sync_hooks->init_hooks();
+		$this->sync_status->init_hooks();
+		$this->admin_menu->init_hooks();
 	}
 
 	/**

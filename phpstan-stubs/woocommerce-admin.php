@@ -150,3 +150,20 @@ namespace Automattic\WooCommerce\Admin\API\Reports {
 		public function prepare_item_for_export( $item );
 	}
 }
+
+namespace Automattic\WooCommerce\Admin {
+	/**
+	 * WooCommerce Admin page controller.
+	 */
+	class PageController {
+
+		/**
+		 * Determine whether the current page is powered by WooCommerce Admin.
+		 *
+		 * @return bool
+		 */
+		public static function is_admin_or_embed_page() {
+			return false;
+		}
+	}
+}
