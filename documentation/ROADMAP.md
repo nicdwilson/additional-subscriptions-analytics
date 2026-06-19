@@ -299,10 +299,10 @@ Audit decisions now locked for implementation:
 
 ### Phase 4 - Backfill & Regeneration  *(~2.5 days)*
 
-**Status:** In progress. Initial scheduler, persistence, syncer, repair service,
-and WP-CLI command wiring are implemented with unit coverage. Remaining work is
-integration coverage against real WooCommerce/WooCommerce Subscriptions storage
-and admin UI entry points in Phase 8.
+**Status:** Complete. Scheduler, persistence, syncer, repair service, and WP-CLI
+command wiring are implemented with unit coverage. Integration coverage now
+exercises default backfill against real WooCommerce/WooCommerce Subscriptions
+storage. Admin UI entry points remain scoped to Phase 8.
 
 - `Data/TableNames.php`: introduced early so all Phase 4 SQL uses centralized
   plugin-owned table names.
@@ -326,12 +326,13 @@ and admin UI entry points in Phase 8.
 
 ### Phase 5 - Incremental Sync  *(~2 days)*
 
-**Status:** Complete for the prototype implementation. `SyncHooks` now registers
-the Subscriptions lifecycle hooks, debounces single-subscription sync actions via
-Action Scheduler, deletes analytics rows on subscription deletion, and has unit
-coverage for idempotent queueing, item mutation hooks, deletion, and scheduled
-sync processing. Full WP/Woo/WCS integration coverage remains part of the shared
-test-environment gap called out for Phase 4 and hardening.
+**Status:** Complete. `SyncHooks` registers the Subscriptions lifecycle hooks,
+debounces single-subscription sync actions via Action Scheduler, deletes
+analytics rows on subscription deletion, and has unit coverage for idempotent
+queueing, item mutation hooks, deletion, and scheduled sync processing.
+Integration coverage now exercises real WooCommerce Subscriptions status,
+next-payment date, renewal completion, failed renewal, line item update,
+deletion, and duplicate-event queueing paths.
 
 - `Sync/SyncHooks.php`: subscribe to WooCommerce Subscriptions lifecycle events
   that can change analytics rows:
