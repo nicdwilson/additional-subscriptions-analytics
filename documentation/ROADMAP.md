@@ -471,7 +471,7 @@ and Subscriptions reports.
 
 ### Phase 10 - Hardening, Docs & Packaging  *(~1.5 days)*
 
-**Status:** Implementation complete; release commit/tag pending.
+**Status:** Complete; `0.9-beta` prerelease published.
 
 - Release metadata is set to `0.1.0`, and the generated plugin zip has been
   smoke-checked for required runtime PHP, built JS/CSS, docs, and translation
@@ -501,6 +501,33 @@ and Subscriptions reports.
   lifecycle.
 - CI green: PHPCS, PHPStan >= level 6, PHPUnit, Playwright.
 - **Exit:** tagged, installable build with all checks passing.
+
+### Phase 11 - Backfill Reimport Controls  *(~1 day)*
+
+**Status:** Complete. Subscription analytics backfill/reimport controls are now
+available from WooCommerce Analytics settings, backed by a capability-gated REST
+endpoint and Action Scheduler. Initial activation and first migration now queue
+the first non-destructive backfill automatically. No WooCommerce > Status >
+Tools cache entry was added because the report has no separate cache layer.
+Local validation passes for Composer validation, PHPCS, PHPStan, PHPUnit,
+wp-env integration tests, JS lint/build, package generation, and diff hygiene;
+Playwright coverage remains present but locally skipped when Woo Admin assets
+are unavailable in the mounted WooCommerce checkout.
+
+- Add a subscription analytics data control to **WooCommerce > Analytics >
+  Settings**, matching WooCommerce's Analytics import/reimport placement.
+- Allow merchants to schedule a non-destructive backfill that preserves existing
+  rows and imports missing subscriptions.
+- Allow merchants to schedule a full replacement regeneration that removes and
+  rebuilds plugin-owned lookup rows from current WooCommerce Subscriptions data.
+- Expose current status, timestamps, last processed page, failure state, and
+  active-run lockout through a `manage_woocommerce` REST endpoint.
+- Do not add **WooCommerce > Status > Tools** cache clearing unless a separate
+  subscription analytics cache exists. The current report reads lookup tables
+  directly.
+- Queue the first non-destructive backfill automatically after activation or
+  first migration while lifecycle state is still `not_started`.
+- **Exit:** `0.9.1` prerelease with installable zip attached.
 
 ---
 

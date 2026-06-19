@@ -32,6 +32,15 @@ sync hooks.
 
 ## Admin Operations
 
+Initial activation queues a non-destructive Action Scheduler backfill
+automatically. Merchants can manage subscription analytics data from
+**WooCommerce > Analytics > Settings**:
+
+- **Backfill missing data** preserves existing lookup rows and imports missing
+  subscriptions.
+- **Delete and rebuild data** removes plugin-owned lookup rows and performs a
+  complete backfill from current WooCommerce Subscriptions source data.
+
 Common maintenance commands:
 
 ```bash
@@ -78,7 +87,7 @@ The package is written to `additional-subscriptions-analytics.zip`.
 
 ## Release
 
-Phase 10 release preparation lives in:
+Release preparation lives in:
 
 - `documentation/RELEASE_CHECKLIST.md`
 - `documentation/FINALIZATION_TASKS.md`

@@ -89,11 +89,11 @@ shown by `qit extensions` and pass the same zip path manually.
 
 ## Tagging
 
-After all checks pass and the Phase 10 changes are committed:
+After all checks pass and the release changes are committed:
 
 ```bash
-git tag v0.1.0
-git push origin main v0.1.0
+git tag 0.9.1
+git push origin main 0.9.1
 ```
 
 Do not tag an uncommitted tree. The tag should point at the exact source used to

@@ -93,3 +93,34 @@ Merchant-facing release notes should state:
 - Regeneration and repair commands affect analytics lookup tables only and do
   not edit subscriptions, orders, products, or payment data.
 - Upcoming renewal counts are estimates until the actual renewal charge occurs.
+
+## Phase 11 Addendum - 0.9.1
+
+### Scope
+
+Version `0.9.1` adds merchant-accessible controls for subscription analytics
+backfill and replacement rebuilds under **WooCommerce > Analytics > Settings**.
+It also queues the initial non-destructive backfill on activation or first
+migration while the lifecycle state is still `not_started`.
+
+### Upgrade Risk Level
+
+**MEDIUM for operational load** because activation can enqueue Action Scheduler
+work automatically on stores with existing subscriptions.
+
+**LOW for merchant data loss** because both manual actions mutate only
+plugin-owned derived lookup tables. The replacement action truncates and rebuilds
+analytics rows, but does not edit subscriptions, orders, products, customers, or
+payment data.
+
+### Safety Notes
+
+- No new database tables or schema migrations are introduced in `0.9.1`.
+- Backfill and replacement actions require `manage_woocommerce` through a REST
+  permission callback.
+- Concurrent manual requests are blocked while a backfill or regeneration is
+  queued or running.
+- No **WooCommerce > Status > Tools** cache-clearing action is included because
+  the plugin does not maintain a separate analytics cache layer.
+- Rollback remains safe for source data. Derived lookup rows can be regenerated
+  after reinstalling or upgrading again.

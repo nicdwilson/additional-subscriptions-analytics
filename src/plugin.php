@@ -10,6 +10,7 @@ namespace AdditionalSubscriptionsAnalytics;
 
 use AdditionalSubscriptionsAnalytics\Admin\Menu;
 use AdditionalSubscriptionsAnalytics\Admin\SyncStatus;
+use AdditionalSubscriptionsAnalytics\Analytics\BackfillController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller as UpcomingRenewalsController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\DataStore as UpcomingRenewalsDataStore;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\ReconciliationController;
@@ -64,6 +65,13 @@ final class Plugin {
 	private SyncStatus $sync_status;
 
 	/**
+	 * Subscription analytics backfill REST controller.
+	 *
+	 * @var BackfillController
+	 */
+	private BackfillController $backfill_controller;
+
+	/**
 	 * WooCommerce Admin menu service.
 	 *
 	 * @var Menu
@@ -102,6 +110,7 @@ final class Plugin {
 		$this->repair_commands           = new RepairCommands( $this->backfill_scheduler );
 		$this->sync_hooks                = new SyncHooks();
 		$this->sync_status               = new SyncStatus();
+		$this->backfill_controller       = new BackfillController( $this->backfill_scheduler, $this->sync_status );
 		$this->admin_menu                = new Menu( $this->sync_status );
 		$this->reconciliation_controller = new ReconciliationController();
 
@@ -126,6 +135,7 @@ final class Plugin {
 		$this->repair_commands->init_hooks();
 		$this->sync_hooks->init_hooks();
 		$this->sync_status->init_hooks();
+		$this->backfill_controller->init_hooks();
 		$this->admin_menu->init_hooks();
 		$this->reconciliation_controller->init_hooks();
 	}
@@ -193,6 +203,7 @@ final class Plugin {
 	 */
 	public function maybe_migrate_database(): void {
 		( new Migrator() )->maybe_migrate();
+		$this->backfill_scheduler->maybe_schedule_initial_backfill();
 	}
 
 	/**
@@ -225,6 +236,7 @@ final class Plugin {
 		}
 
 		( new Migrator() )->migrate();
+		( new BackfillScheduler() )->maybe_schedule_initial_backfill();
 
 		\update_option( 'asa_version', ASA_VERSION );
 		\update_option( 'asa_activation_time', \time() );

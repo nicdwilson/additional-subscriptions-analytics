@@ -81,3 +81,26 @@ bootstrap/readme/build files and omitted `src/`, which would have produced a
 non-installable package. Phase 10 adds an explicit `package.json` `files`
 allowlist so the zip includes runtime PHP source, built assets, language files,
 and release/admin docs.
+
+## Phase 11 Addendum - 0.9.1
+
+Reviewed the Phase 11 source tree for the new subscription analytics reimport
+controls:
+
+- **Settings UI path:** `client/settings/index.js` registers a WooCommerce
+  Analytics settings component, and
+  `client/settings/subscription-analytics-reimport.js` renders status plus
+  backfill/replacement actions.
+- **REST path:** `Analytics\BackfillController` exposes
+  `/wc-analytics/subscription-analytics/backfill` with `manage_woocommerce`
+  permission checks, status payloads, manual backfill scheduling, replacement
+  regeneration scheduling, and active-run lockout.
+- **Activation path:** `Plugin::activate()` and first migration call
+  `BackfillScheduler::maybe_schedule_initial_backfill()` so the first
+  non-destructive import is queued automatically while lifecycle state is still
+  `not_started`.
+
+No critical, high-priority, or release-blocking traceability issues were found
+for Phase 11. The intentionally destructive rebuild control is scoped to
+plugin-owned derived lookup tables and is surfaced in Analytics Settings rather
+than WooCommerce Status Tools, matching WooCommerce's analytics import tooling.

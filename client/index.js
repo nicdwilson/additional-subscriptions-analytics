@@ -3,3 +3,4 @@
  */
 
 import './reports/upcoming-renewals';
+import './settings';

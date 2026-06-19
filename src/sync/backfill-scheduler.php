@@ -10,6 +10,7 @@ namespace AdditionalSubscriptionsAnalytics\Sync;
 
 use AdditionalSubscriptionsAnalytics\Data\DateWindow;
 use AdditionalSubscriptionsAnalytics\Data\SubscriptionAnalyticsRepository;
+use AdditionalSubscriptionsAnalytics\Database\Installer;
 use AdditionalSubscriptionsAnalytics\Database\Migrator;
 
 defined( 'ABSPATH' ) || exit;
@@ -190,6 +191,27 @@ final class BackfillScheduler {
 	}
 
 	/**
+	 * Schedule the first non-destructive backfill when no run has started yet.
+	 *
+	 * @since 0.9.1
+	 *
+	 * @return bool True when a backfill was scheduled.
+	 */
+	public function maybe_schedule_initial_backfill(): bool {
+		if ( Installer::BACKFILL_STATUS_NOT_STARTED !== $this->get_status() ) {
+			return false;
+		}
+
+		if ( '' !== $this->get_option( Migrator::OPTION_BACKFILL_COMPLETED_AT_GMT, '' ) ) {
+			return false;
+		}
+
+		$this->schedule_backfill( true );
+
+		return true;
+	}
+
+	/**
 	 * Schedule a full table regeneration.
 	 *
 	 * @since 0.1.0
@@ -202,6 +224,38 @@ final class BackfillScheduler {
 		$this->delete_option( self::OPTION_BACKFILL_FAILURE );
 
 		$this->schedule_unique_action( self::ACTION_REGENERATE_INIT );
+	}
+
+	/**
+	 * Get the current backfill status.
+	 *
+	 * @since 0.9.1
+	 *
+	 * @return string Current lifecycle status.
+	 */
+	public function get_status(): string {
+		return (string) $this->get_option(
+			Migrator::OPTION_BACKFILL_STATUS,
+			Installer::BACKFILL_STATUS_NOT_STARTED
+		);
+	}
+
+	/**
+	 * Determine whether a backfill or regeneration is currently active.
+	 *
+	 * @since 0.9.1
+	 *
+	 * @return bool True when a run is queued or running.
+	 */
+	public function is_backfill_active(): bool {
+		return \in_array(
+			$this->get_status(),
+			array(
+				self::STATUS_QUEUED,
+				self::STATUS_RUNNING,
+			),
+			true
+		);
 	}
 
 	/**
@@ -461,6 +515,24 @@ final class BackfillScheduler {
 		if ( \function_exists( 'update_option' ) ) {
 			\update_option( $option, $value );
 		}
+	}
+
+	/**
+	 * Read a WordPress option when WordPress is loaded.
+	 *
+	 * @since 0.9.1
+	 *
+	 * @param string $option  Option name.
+	 * @param mixed  $default_value Default value.
+	 *
+	 * @return mixed Option value.
+	 */
+	private function get_option( string $option, mixed $default_value = false ): mixed {
+		if ( \function_exists( 'get_option' ) ) {
+			return \get_option( $option, $default_value );
+		}
+
+		return $default_value;
 	}
 
 	/**

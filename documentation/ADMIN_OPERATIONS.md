@@ -19,7 +19,7 @@ every request.
 Lifecycle options:
 
 - `asa_db_version`: installed schema version.
-- `asa_backfill_status`: `not_started`, `queued`, `running`, `complete`, or
+- `asa_backfill_status`: `not_started`, `queued`, `running`, `completed`, or
   `failed`.
 - `asa_backfill_started_at_gmt`: GMT timestamp for the current or last backfill.
 - `asa_backfill_completed_at_gmt`: GMT timestamp for the last successful
@@ -35,9 +35,23 @@ actions, removes `asa_` options, and drops both lookup tables.
 
 ## Backfill And Regeneration
 
-Initial activation creates tables, then queues a backfill through Action
-Scheduler. The report surfaces sync status notices when data is not ready, is
-running, or has failed.
+Initial activation creates tables, then queues a non-destructive backfill through
+Action Scheduler. The report surfaces sync status notices when data is not
+ready, is running, or has failed.
+
+Merchants can manage subscription analytics import state from
+**WooCommerce > Analytics > Settings**:
+
+- **Backfill missing data** preserves existing lookup rows and imports
+  subscriptions that are not already present.
+- **Delete and rebuild data** queues a full replacement regeneration. The
+  scheduled job truncates plugin-owned lookup tables, then repopulates them from
+  current WooCommerce Subscriptions source data.
+
+This plugin does not currently maintain a separate report cache. There is
+therefore no **WooCommerce > Status > Tools** cache-clearing entry for
+subscription analytics. If cached aggregates are introduced later, cache clearing
+should be added there through WooCommerce's debug-tools surface.
 
 Use full regeneration when table data looks broadly stale, when schema lifecycle
 work has run after a deployment, or when validation reports many mismatches:
