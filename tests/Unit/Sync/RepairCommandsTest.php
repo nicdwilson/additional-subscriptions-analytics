@@ -71,6 +71,35 @@ final class RepairCommandsTest extends TestCase {
 
 		$this->assertSame( 7, $commands->cleanup_orphan_product_lookup_rows() );
 	}
+
+	/**
+	 * Test upcoming renewals reconciliation delegates to diagnostics.
+	 *
+	 * @return void
+	 */
+	public function test_reconcile_upcoming_renewals_delegates_to_reconciler(): void {
+		$reconciler = new RepairTestReconciler();
+		$commands   = new RepairCommands(
+			new RepairTestScheduler(),
+			new RepairTestSyncer(),
+			new RepairTestRepository( array() ),
+			null,
+			$reconciler
+		);
+
+		$result = $commands->reconcile_upcoming_renewals(
+			array(
+				'after'  => '2026-07-03',
+				'before' => '2026-07-03',
+				'status' => 'active',
+			)
+		);
+
+		$this->assertSame( 'matched', $result['status'] );
+		$this->assertSame( '2026-07-03', $reconciler->last_args['after'] );
+		$this->assertSame( '2026-07-03', $reconciler->last_args['before'] );
+		$this->assertSame( 'active', $reconciler->last_args['status'] );
+	}
 }
 
 /**
@@ -185,5 +214,31 @@ final class RepairTestRepository {
 	 */
 	public function cleanup_orphan_product_lookup_rows(): int {
 		return $this->orphan_rows_deleted;
+	}
+}
+
+/**
+ * Test reconciler.
+ */
+final class RepairTestReconciler {
+
+	/**
+	 * Last reconciliation args.
+	 *
+	 * @var array<string, mixed>
+	 */
+	public array $last_args = array();
+
+	/**
+	 * Reconcile upcoming renewal diagnostics.
+	 *
+	 * @param array<string, mixed> $args Diagnostic args.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function reconcile( array $args ): array {
+		$this->last_args = $args;
+
+		return array( 'status' => 'matched' );
 	}
 }

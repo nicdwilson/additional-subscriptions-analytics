@@ -450,6 +450,16 @@ asset registry.
 
 ### Phase 9 - Validation & Reconciliation  *(~1 day)*
 
+**Status:** Complete. `Diagnostics\UpcomingRenewalsReconciler` now compares
+lookup-table aggregates with live WooCommerce Subscriptions source rows for a
+selected Analytics window, and reports row-level data-sync mismatches before any
+rendering investigation. The diagnostic is exposed through
+`/wc-analytics/reports/upcoming-renewals/reconcile`, the report's **Validate data**
+action, and `wp asa reconcile-upcoming-renewals` for BVO next-Friday checks.
+`documentation/VALIDATION_AND_RECONCILIATION.md` documents the validation flow,
+scan limits, and expected differences from legacy *Upcoming Recurring Revenue*
+and Subscriptions reports.
+
 - Add diagnostics that compare lookup-table aggregates against source
   subscriptions for a selected window.
 - Validate BVO's next-Friday counts against the manual subscriptions-list method.

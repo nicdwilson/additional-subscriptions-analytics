@@ -2,6 +2,7 @@
  * External dependencies
  */
 /* eslint-disable import/no-unresolved, import/no-extraneous-dependencies -- WooCommerce dependency extraction externalizes WordPress and WooCommerce packages. */
+import apiFetch from '@wordpress/api-fetch';
 import { Button, ButtonGroup, Notice } from '@wordpress/components';
 import { addFilter } from '@wordpress/hooks';
 import { decodeEntities } from '@wordpress/html-entities';
@@ -181,12 +182,70 @@ const PresetButtons = ( { activePreset, onSelect } ) => (
 	</ButtonGroup>
 );
 
+const getValidationNotice = ( validationResult ) => {
+	if ( ! validationResult ) {
+		return null;
+	}
+
+	if ( validationResult.status === 'matched' ) {
+		return {
+			status: 'success',
+			message: __(
+				'Lookup-table totals match source subscriptions for this window.',
+				'additional-subscriptions-analytics'
+			),
+		};
+	}
+
+	if ( validationResult.status === 'incomplete' ) {
+		return {
+			status: 'warning',
+			message: sprintf(
+				/* translators: %d: number of mismatches. */
+				__(
+					'Validation reached the source scan limit and found %d data-sync differences.',
+					'additional-subscriptions-analytics'
+				),
+				validationResult.summary?.mismatchCount || 0
+			),
+		};
+	}
+
+	return {
+		status: 'error',
+		message: sprintf(
+			/* translators: %d: number of mismatches. */
+			__(
+				'Validation found %d data-sync differences. Regenerate or resync before investigating report rendering.',
+				'additional-subscriptions-analytics'
+			),
+			validationResult.summary?.mismatchCount || 0
+		),
+	};
+};
+
+const ValidationNotice = ( { validationResult } ) => {
+	const notice = getValidationNotice( validationResult );
+
+	if ( ! notice ) {
+		return null;
+	}
+
+	return (
+		<Notice status={ notice.status } isDismissible={ false }>
+			{ notice.message }
+		</Notice>
+	);
+};
+
 const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 	const [ activePreset, setActivePreset ] = useState( 'next_friday' );
 	const [ query, setQuery ] = useState( () =>
 		getInitialQuery( incomingQuery )
 	);
 	const [ isExporting, setIsExporting ] = useState( false );
+	const [ isValidating, setIsValidating ] = useState( false );
+	const [ validationResult, setValidationResult ] = useState( null );
 	const headers = useMemo( () => getHeaders(), [] );
 	const { createNotice } = useDispatch( 'core/notices' );
 	const { startExport } = useDispatch( EXPORT_STORE_NAME );
@@ -210,6 +269,7 @@ const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 
 	const onPresetSelect = ( preset ) => {
 		setActivePreset( preset );
+		setValidationResult( null );
 		setQuery( ( currentQuery ) => ( {
 			...currentQuery,
 			...getPresetQuery( preset ),
@@ -218,6 +278,7 @@ const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 	};
 
 	const onQueryChange = ( param ) => ( value, direction ) => {
+		setValidationResult( null );
 		setQuery( ( currentQuery ) => {
 			if ( param === 'sort' ) {
 				return {
@@ -256,6 +317,39 @@ const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 			generateCSVFileName( REPORT_TITLE, tableData.query || query ),
 			generateCSVDataFromTable( headers, rows )
 		);
+	};
+
+	const onValidate = async () => {
+		if ( isValidating ) {
+			return;
+		}
+
+		const validationWindow = getPresetQuery( activePreset );
+		const params = new URLSearchParams( {
+			after: query.after || validationWindow.after,
+			before: query.before || validationWindow.before,
+			status: query.status || DEFAULT_STATUS,
+			limit: '5000',
+		} );
+
+		try {
+			setIsValidating( true );
+			setValidationResult(
+				await apiFetch( {
+					path: `/wc-analytics/reports/upcoming-renewals/reconcile?${ params.toString() }`,
+				} )
+			);
+		} catch ( error ) {
+			createNotice(
+				'error',
+				__(
+					'There was a problem validating the upcoming renewals data. Please try again.',
+					'additional-subscriptions-analytics'
+				)
+			);
+		} finally {
+			setIsValidating( false );
+		}
 	};
 
 	const onDownload = async () => {
@@ -309,6 +403,7 @@ const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 	return (
 		<div className="asa-upcoming-renewals">
 			<SyncStatusNotice />
+			<ValidationNotice validationResult={ validationResult } />
 			<PresetButtons
 				activePreset={ activePreset }
 				onSelect={ onPresetSelect }
@@ -327,6 +422,18 @@ const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 					'additional-subscriptions-analytics'
 				) }
 				actions={ [
+					<Button
+						key="validate"
+						variant="secondary"
+						onClick={ onValidate }
+						isBusy={ isValidating }
+						disabled={ tableData.isRequesting || isValidating }
+					>
+						{ __(
+							'Validate data',
+							'additional-subscriptions-analytics'
+						) }
+					</Button>,
 					<Button
 						key="download"
 						variant="secondary"

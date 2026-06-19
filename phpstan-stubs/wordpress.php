@@ -181,6 +181,15 @@ function __( string $text, string $domain = 'default' ): string {}
 function sanitize_text_field( string $str ): string {}
 
 /**
+ * Convert a value to a non-negative integer.
+ *
+ * @param mixed $maybeint Source value.
+ *
+ * @return int
+ */
+function absint( mixed $maybeint ): int {}
+
+/**
  * Escape HTML.
  *
  * @param string $text Source text.
@@ -373,6 +382,53 @@ function wp_localize_script( string $handle, string $object_name, array $l10n ):
 function get_current_screen(): ?WP_Screen {}
 
 /**
+ * Register a REST route.
+ *
+ * @param string              $route_namespace Route namespace.
+ * @param string              $route           Route path.
+ * @param array<mixed>        $args            Route args.
+ * @param bool                $override        Whether to override an existing route.
+ *
+ * @return bool
+ */
+function register_rest_route(
+	string $route_namespace,
+	string $route,
+	array $args = array(),
+	bool $override = false
+): bool {}
+
+/**
+ * Wrap data in a REST response.
+ *
+ * @param mixed $response Response data.
+ *
+ * @return WP_REST_Response
+ */
+function rest_ensure_response( mixed $response ): WP_REST_Response {}
+
+/**
+ * Encode data as JSON.
+ *
+ * @param mixed $data    Data to encode.
+ * @param int   $options JSON options.
+ * @param int   $depth   Maximum depth.
+ *
+ * @return string|false
+ */
+function wp_json_encode( mixed $data, int $options = 0, int $depth = 512 ): string|false {}
+
+/**
+ * Get a user by a field.
+ *
+ * @param string     $field User field.
+ * @param int|string $value User value.
+ *
+ * @return WP_User|false
+ */
+function get_user_by( string $field, int|string $value ): WP_User|false {}
+
+/**
  * Load a plugin text domain.
  *
  * @param string $domain          Text domain.
@@ -503,6 +559,21 @@ class WP_Screen {
 }
 
 /**
+ * WordPress user.
+ */
+class WP_User {
+
+	/**
+	 * Add a capability.
+	 *
+	 * @param string $capability Capability name.
+	 *
+	 * @return void
+	 */
+	public function add_cap( string $capability ): void {}
+}
+
+/**
  * Unschedule Action Scheduler actions.
  *
  * @param string              $hook  Hook name.
@@ -587,6 +658,15 @@ class WP_CLI {
 	 * @return void
 	 */
 	public static function warning( string $message ): void {}
+
+	/**
+	 * Emit a line.
+	 *
+	 * @param string $message Message.
+	 *
+	 * @return void
+	 */
+	public static function line( string $message ): void {}
 
 	/**
 	 * Emit error.

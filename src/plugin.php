@@ -12,6 +12,7 @@ use AdditionalSubscriptionsAnalytics\Admin\Menu;
 use AdditionalSubscriptionsAnalytics\Admin\SyncStatus;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller as UpcomingRenewalsController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\DataStore as UpcomingRenewalsDataStore;
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\ReconciliationController;
 use AdditionalSubscriptionsAnalytics\Database\Migrator;
 use AdditionalSubscriptionsAnalytics\Support\Compat;
 use AdditionalSubscriptionsAnalytics\Sync\BackfillScheduler;
@@ -70,6 +71,13 @@ final class Plugin {
 	private Menu $admin_menu;
 
 	/**
+	 * Upcoming renewals reconciliation REST controller.
+	 *
+	 * @var ReconciliationController
+	 */
+	private ReconciliationController $reconciliation_controller;
+
+	/**
 	 * Get the singleton instance.
 	 *
 	 * @since 0.1.0
@@ -90,11 +98,12 @@ final class Plugin {
 	 * @since 0.1.0
 	 */
 	private function __construct() {
-		$this->backfill_scheduler = new BackfillScheduler();
-		$this->repair_commands    = new RepairCommands( $this->backfill_scheduler );
-		$this->sync_hooks         = new SyncHooks();
-		$this->sync_status        = new SyncStatus();
-		$this->admin_menu         = new Menu( $this->sync_status );
+		$this->backfill_scheduler        = new BackfillScheduler();
+		$this->repair_commands           = new RepairCommands( $this->backfill_scheduler );
+		$this->sync_hooks                = new SyncHooks();
+		$this->sync_status               = new SyncStatus();
+		$this->admin_menu                = new Menu( $this->sync_status );
+		$this->reconciliation_controller = new ReconciliationController();
 
 		$this->init_hooks();
 	}
@@ -118,6 +127,7 @@ final class Plugin {
 		$this->sync_hooks->init_hooks();
 		$this->sync_status->init_hooks();
 		$this->admin_menu->init_hooks();
+		$this->reconciliation_controller->init_hooks();
 	}
 
 	/**

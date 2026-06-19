@@ -16,6 +16,28 @@ namespace {
 	 * REST request.
 	 */
 	class WP_REST_Request {
+
+		/**
+		 * Get a request parameter.
+		 *
+		 * @param string $key Parameter key.
+		 *
+		 * @return mixed
+		 */
+		public function get_param( string $key ): mixed {}
+	}
+
+	/**
+	 * REST server.
+	 */
+	class WP_REST_Server {
+
+		/**
+		 * Readable method alias.
+		 *
+		 * @var string
+		 */
+		public const READABLE = 'GET';
 	}
 
 	/**

@@ -10,6 +10,7 @@ namespace AdditionalSubscriptionsAnalytics\Sync;
 
 use AdditionalSubscriptionsAnalytics\Data\DateWindow;
 use AdditionalSubscriptionsAnalytics\Data\SubscriptionAnalyticsRepository;
+use AdditionalSubscriptionsAnalytics\Diagnostics\UpcomingRenewalsReconciler;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -49,6 +50,13 @@ final class RepairCommands {
 	private DateWindow $date_window;
 
 	/**
+	 * Upcoming renewals reconciliation service.
+	 *
+	 * @var object
+	 */
+	private object $reconciler;
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 0.1.0
@@ -57,17 +65,20 @@ final class RepairCommands {
 	 * @param object|null     $syncer      Optional subscription syncer.
 	 * @param object|null     $repository  Optional analytics repository.
 	 * @param DateWindow|null $date_window Optional date helper.
+	 * @param object|null     $reconciler  Optional reconciliation service.
 	 */
 	public function __construct(
 		?object $scheduler = null,
 		?object $syncer = null,
 		?object $repository = null,
-		?DateWindow $date_window = null
+		?DateWindow $date_window = null,
+		?object $reconciler = null
 	) {
 		$this->repository  = $repository ?? new SubscriptionAnalyticsRepository();
 		$this->scheduler   = $scheduler ?? new BackfillScheduler( null, null, $this->repository );
 		$this->syncer      = $syncer ?? new SubscriptionSyncer( $this->repository );
 		$this->date_window = $date_window ?? new DateWindow();
+		$this->reconciler  = $reconciler ?? new UpcomingRenewalsReconciler();
 	}
 
 	/**
@@ -86,6 +97,7 @@ final class RepairCommands {
 		\WP_CLI::add_command( 'asa resync-subscription', array( $this, 'resync_subscription_cli' ) );
 		\WP_CLI::add_command( 'asa repair-stale', array( $this, 'repair_stale_cli' ) );
 		\WP_CLI::add_command( 'asa cleanup-orphans', array( $this, 'cleanup_orphans_cli' ) );
+		\WP_CLI::add_command( 'asa reconcile-upcoming-renewals', array( $this, 'reconcile_upcoming_renewals_cli' ) );
 	}
 
 	/**
@@ -147,6 +159,19 @@ final class RepairCommands {
 	 */
 	public function cleanup_orphan_product_lookup_rows(): int {
 		return $this->repository->cleanup_orphan_product_lookup_rows();
+	}
+
+	/**
+	 * Reconcile upcoming renewal lookup rows against source subscriptions.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param array<string, mixed> $args Diagnostic arguments.
+	 *
+	 * @return array<string, mixed> Diagnostic result.
+	 */
+	public function reconcile_upcoming_renewals( array $args ): array {
+		return $this->reconciler->reconcile( $args );
 	}
 
 	/**
@@ -259,6 +284,53 @@ final class RepairCommands {
 	}
 
 	/**
+	 * WP-CLI handler for upcoming renewals reconciliation.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param array<int, string>    $args       Positional arguments.
+	 * @param array<string, string> $assoc_args Associative arguments.
+	 *
+	 * @return void
+	 */
+	public function reconcile_upcoming_renewals_cli( array $args, array $assoc_args ): void {
+		unset( $args );
+
+		$result = $this->reconcile_upcoming_renewals(
+			array(
+				'after'  => (string) ( $assoc_args['after'] ?? '' ),
+				'before' => (string) ( $assoc_args['before'] ?? '' ),
+				'status' => (string) ( $assoc_args['status'] ?? 'active' ),
+				'limit'  => isset( $assoc_args['limit'] ) ? \max( 1, (int) $assoc_args['limit'] ) : 5000,
+			)
+		);
+
+		if ( 'json' === ( $assoc_args['format'] ?? '' ) ) {
+			$this->cli_line( (string) \wp_json_encode( $result, \JSON_PRETTY_PRINT ) );
+			return;
+		}
+
+		$summary = \sprintf(
+			/* translators: 1: mismatch count, 2: source subscriptions scanned. */
+			\__( 'Found %1$d mismatches after scanning %2$d source subscriptions.', 'additional-subscriptions-analytics' ),
+			(int) ( $result['summary']['mismatchCount'] ?? 0 ),
+			(int) ( $result['summary']['sourceSubscriptionsScanned'] ?? 0 )
+		);
+
+		if ( 'matched' === ( $result['status'] ?? '' ) ) {
+			$this->cli_success(
+				\__( 'Lookup-table totals match source subscriptions for this window.', 'additional-subscriptions-analytics' )
+			);
+			return;
+		}
+
+		$this->cli_warning( $summary );
+		$this->cli_warning(
+			\__( 'Treat these as data-sync differences first; regenerate or resync before investigating report rendering.', 'additional-subscriptions-analytics' )
+		);
+	}
+
+	/**
 	 * Send a WP-CLI success message.
 	 *
 	 * @since 0.1.0
@@ -285,6 +357,21 @@ final class RepairCommands {
 	private function cli_warning( string $message ): void {
 		if ( \class_exists( '\WP_CLI' ) ) {
 			\WP_CLI::warning( $message );
+		}
+	}
+
+	/**
+	 * Send a WP-CLI line.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param string $message Message.
+	 *
+	 * @return void
+	 */
+	private function cli_line( string $message ): void {
+		if ( \class_exists( '\WP_CLI' ) ) {
+			\WP_CLI::line( $message );
 		}
 	}
 
