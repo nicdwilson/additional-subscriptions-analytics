@@ -1,0 +1,316 @@
+# Copyright (C) 2026 WooCommerce
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Additional Subscriptions Analytics 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/additional-subscriptions-analytics\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-06-19T21:47:20+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: additional-subscriptions-analytics\n"
+
+#. Plugin Name of the plugin
+#: additional-subscriptions-analytics.php
+msgid "Additional Subscriptions Analytics"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: additional-subscriptions-analytics.php
+msgid "https://github.com/woocommerce/additional-subscriptions-analytics"
+msgstr ""
+
+#. Description of the plugin
+#: additional-subscriptions-analytics.php
+msgid "Adds native WooCommerce Analytics reports backed by subscription analytics lookup tables."
+msgstr ""
+
+#. Author of the plugin
+#: additional-subscriptions-analytics.php
+msgid "WooCommerce"
+msgstr ""
+
+#. Author URI of the plugin
+#: additional-subscriptions-analytics.php
+msgid "https://woocommerce.com/"
+msgstr ""
+
+#: src/admin/menu.php:89
+#: client/reports/upcoming-renewals/config.js:8
+msgid "Upcoming renewals"
+msgstr ""
+
+#: src/admin/sync-status.php:83
+msgid "Subscription analytics data is ready."
+msgstr ""
+
+#: src/admin/sync-status.php:101
+msgid "Subscription analytics tables are missing. Run the database migration before using this report."
+msgstr ""
+
+#: src/admin/sync-status.php:106
+msgid "Subscription analytics backfill failed."
+msgstr ""
+
+#. translators: %s: failure message.
+#: src/admin/sync-status.php:111
+#, php-format
+msgid "Subscription analytics backfill failed: %s"
+msgstr ""
+
+#: src/admin/sync-status.php:127
+msgid "Subscription analytics backfill is running. Report results may be incomplete until it finishes."
+msgstr ""
+
+#: src/admin/sync-status.php:137
+msgid "Subscription analytics tables need a backfill before this report has complete data."
+msgstr ""
+
+#: src/admin/sync-status.php:146
+msgid "Subscription analytics data has not synced recently. Recent subscription changes may be missing."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:58
+msgid "Limit results to subscriptions with the specified status. Use \"any\" to include all statuses."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:87
+msgid "Sorry, you cannot view upcoming renewal analytics."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:159
+msgid "Product ID."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:165
+msgid "Variation ID, or 0 for simple products."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:171
+msgid "Product name snapshot from the subscription line item."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:177
+msgid "Total recurring product quantity due to renew."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:183
+msgid "Number of subscriptions due to renew."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:189
+msgid "Recurring revenue due for the renewal window."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:196
+msgid "Subscription currency code."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:202
+msgid "First matching next payment date in GMT."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:208
+msgid "Last matching next payment date in GMT."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:228
+#: client/reports/upcoming-renewals/config.js:96
+msgid "Product title"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:229
+#: client/reports/upcoming-renewals/config.js:103
+msgid "Product ID"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:230
+#: client/reports/upcoming-renewals/config.js:109
+msgid "Variation ID"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:231
+#: client/reports/upcoming-renewals/config.js:115
+msgid "Renewal quantity"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:232
+#: client/reports/upcoming-renewals/config.js:122
+msgid "Subscriptions"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:233
+#: client/reports/upcoming-renewals/config.js:129
+msgid "Recurring total"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:234
+msgid "Currency"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/reconciliation-controller.php:97
+msgid "Start date for the reconciliation window."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/reconciliation-controller.php:103
+msgid "End date for the reconciliation window."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/reconciliation-controller.php:109
+msgid "Subscription status filter. Use \"any\" to include all statuses."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/reconciliation-controller.php:118
+msgid "Maximum number of source subscriptions to scan."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/reconciliation-controller.php:145
+msgid "Sorry, you cannot view upcoming renewal reconciliation diagnostics."
+msgstr ""
+
+#: src/plugin.php:176
+msgid "Upcoming subscription renewals by product."
+msgstr ""
+
+#. translators: 1: plugin name, 2: required PHP version.
+#: src/support/compat.php:31
+#, php-format
+msgid "%1$s requires PHP %2$s or higher."
+msgstr ""
+
+#. translators: 1: plugin name, 2: required WordPress version.
+#: src/support/compat.php:40
+#, php-format
+msgid "%1$s requires WordPress %2$s or higher."
+msgstr ""
+
+#: src/support/compat.php:47
+msgid "Additional Subscriptions Analytics requires WooCommerce to be installed and active."
+msgstr ""
+
+#. translators: 1: plugin name, 2: required WooCommerce version.
+#: src/support/compat.php:56
+#, php-format
+msgid "%1$s requires WooCommerce %2$s or higher."
+msgstr ""
+
+#: src/support/compat.php:63
+msgid "Additional Subscriptions Analytics requires WooCommerce Subscriptions to be installed and active."
+msgstr ""
+
+#. translators: 1: plugin name, 2: required WooCommerce Subscriptions version.
+#: src/support/compat.php:74
+#, php-format
+msgid "%1$s requires WooCommerce Subscriptions %2$s or higher."
+msgstr ""
+
+#: src/sync/repair-commands.php:192
+msgid "Subscription analytics regeneration scheduled."
+msgstr ""
+
+#: src/sync/repair-commands.php:213
+msgid "A valid subscription ID is required."
+msgstr ""
+
+#: src/sync/repair-commands.php:222
+msgid "Source subscription was not found; analytics rows were removed."
+msgstr ""
+
+#. translators: %d: subscription ID.
+#: src/sync/repair-commands.php:230
+#, php-format
+msgid "Subscription %d resynced."
+msgstr ""
+
+#. translators: %d: number of subscriptions processed.
+#: src/sync/repair-commands.php:256
+#, php-format
+msgid "Processed %d stale subscription analytics rows."
+msgstr ""
+
+#. translators: %d: number of product lookup rows deleted.
+#: src/sync/repair-commands.php:280
+#, php-format
+msgid "Deleted %d orphan product lookup rows."
+msgstr ""
+
+#. translators: 1: mismatch count, 2: source subscriptions scanned.
+#: src/sync/repair-commands.php:315
+#, php-format
+msgid "Found %1$d mismatches after scanning %2$d source subscriptions."
+msgstr ""
+
+#: src/sync/repair-commands.php:322
+#: client/reports/upcoming-renewals/index.js:193
+msgid "Lookup-table totals match source subscriptions for this window."
+msgstr ""
+
+#: src/sync/repair-commands.php:329
+msgid "Treat these as data-sync differences first; regenerate or resync before investigating report rendering."
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:82
+msgid "Next Friday"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:86
+msgid "Next 7 days"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:90
+msgid "Next 30 days"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:136
+msgid "First renewal"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:141
+msgid "Last renewal"
+msgstr ""
+
+#. translators: %d: number of mismatches.
+#: client/reports/upcoming-renewals/index.js:205
+#, js-format
+msgid "Validation reached the source scan limit and found %d data-sync differences."
+msgstr ""
+
+#. translators: %d: number of mismatches.
+#: client/reports/upcoming-renewals/index.js:218
+#, js-format
+msgid "Validation found %d data-sync differences. Regenerate or resync before investigating report rendering."
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:345
+msgid "There was a problem validating the upcoming renewals data. Please try again."
+msgstr ""
+
+#. translators: %s: report title.
+#: client/reports/upcoming-renewals/index.js:372
+#, js-format
+msgid "Your %s report export will be emailed to you."
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:382
+msgid "There was a problem exporting the upcoming renewals report. Please try again."
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:395
+msgid "The upcoming renewals report could not be loaded."
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:420
+msgid "No upcoming renewals found for this window."
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:432
+msgid "Validate data"
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:448
+msgid "Download CSV"
+msgstr ""

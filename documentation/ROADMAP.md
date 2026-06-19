@@ -471,6 +471,29 @@ and Subscriptions reports.
 
 ### Phase 10 - Hardening, Docs & Packaging  *(~1.5 days)*
 
+**Status:** Implementation complete; release commit/tag pending.
+
+- Release metadata is set to `0.1.0`, and the generated plugin zip has been
+  smoke-checked for required runtime PHP, built JS/CSS, docs, and translation
+  files.
+- Code health and traceability review is captured in
+  `documentation/FINALIZATION_TASKS.md`.
+- Upgrade-safety review is captured in
+  `documentation/UPGRADE_SAFETY_REPORT.md`.
+- Admin operations, table lifecycle, regeneration, release, and reconciliation
+  docs are now captured under `documentation/`.
+- `readme.txt`, `README.md`, release packaging scripts, CI hardening, QIT config,
+  and `languages/additional-subscriptions-analytics.pot` are in place.
+- Local validation passes for Composer validation, PHPCS, PHPStan, PHPUnit,
+  wp-env integration tests, JS lint/build, package generation, and diff hygiene.
+  Playwright coverage remains present but locally skipped when Woo Admin assets
+  are unavailable in the mounted WooCommerce checkout.
+- QIT CLI wiring and release checklist are in place. The local QIT security run
+  reached WooCommerce QIT, then stopped because the authenticated account does
+  not have an extension registered with slug
+  `additional-subscriptions-analytics`; release operators must rerun QIT with
+  the registered extension slug.
+
 - Run code health and traceability review before release.
 - Run upgrade-safety review because schema and migrations are v1-critical.
 - WooCommerce QIT compatibility checks.

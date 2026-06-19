@@ -1,6 +1,6 @@
 {
 	"name": "additional-subscriptions-analytics",
-	"version": "0.1.0-dev",
+	"version": "0.1.0",
 	"description": "Native WooCommerce Analytics reports backed by subscription analytics lookup tables.",
 	"private": true,
 	"engines": {
@@ -16,9 +16,32 @@
 		"lint": "npm run lint:js && npm run lint:php",
 		"lint:js": "wp-scripts lint-js client",
 		"lint:php": "composer lint",
+		"make-pot": "wp i18n make-pot . languages/additional-subscriptions-analytics.pot --domain=additional-subscriptions-analytics --exclude=node_modules,vendor,build,tests,.git,.github --skip-audit",
+		"package": "npm run build && npm run make-pot && npm run plugin-zip",
+		"plugin-zip": "wp-scripts plugin-zip",
+		"qit:compat": "npm run package && npm run qit:security && npm run qit:phpcompatibility && npm run qit:woo-e2e",
+		"qit:phpcompatibility": "qit run:phpcompatibility additional-subscriptions-analytics --zip=additional-subscriptions-analytics.zip",
+		"qit:security": "qit run:security additional-subscriptions-analytics --zip=additional-subscriptions-analytics.zip",
+		"qit:woo-e2e": "qit run:woo-e2e additional-subscriptions-analytics --zip=additional-subscriptions-analytics.zip",
+		"test": "composer test",
 		"test:integration:wp-env": "wp-env run --env-cwd='wp-content/plugins/additional-subscriptions-analytics' tests-cli vendor/bin/phpunit --testsuite integration",
 		"test:e2e": "playwright test"
 	},
+	"files": [
+		"additional-subscriptions-analytics.php",
+		"build/**",
+		"documentation/ADMIN_OPERATIONS.md",
+		"documentation/FINALIZATION_TASKS.md",
+		"documentation/RELEASE_CHECKLIST.md",
+		"documentation/UPGRADE_SAFETY_REPORT.md",
+		"documentation/VALIDATION_AND_RECONCILIATION.md",
+		"languages/**",
+		"LICENSE",
+		"README.md",
+		"readme.txt",
+		"src/**",
+		"uninstall.php"
+	],
 	"devDependencies": {
 		"@playwright/test": "^1.61.0",
 		"@woocommerce/dependency-extraction-webpack-plugin": "^3.1.0",

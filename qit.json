@@ -1,0 +1,40 @@
+{
+	"$schema": "https://raw.githubusercontent.com/woocommerce/qit-cli/trunk/src/src/PreCommand/Schemas/qit-schema.json",
+	"sut": {
+		"type": "plugin",
+		"slug": "additional-subscriptions-analytics",
+		"source": {
+			"type": "local",
+			"path": "./additional-subscriptions-analytics.zip"
+		}
+	},
+	"environments": {
+		"minimum": {
+			"php": "8.0",
+			"wp": "6.4",
+			"woo": "9.3"
+		},
+		"stable": {
+			"php": "8.2",
+			"wp": "stable",
+			"woo": "stable"
+		}
+	},
+	"test_types": {
+		"woo-e2e": {
+			"compatibility": {
+				"environment": "stable"
+			}
+		},
+		"phpcompatibility": {
+			"minimum": {
+				"environment": "minimum"
+			}
+		},
+		"security": {
+			"release": {
+				"environment": "stable"
+			}
+		}
+	}
+}

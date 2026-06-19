@@ -40,6 +40,8 @@ wp-config.php
 /.phpstan-cache/
 /.phpunit.result.cache
 /tests/E2E/.auth/
+/test-results/
+/*.zip
 
 # htaccess
 /.htaccess
