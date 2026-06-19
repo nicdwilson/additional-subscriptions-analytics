@@ -1,0 +1,14 @@
+parameters:
+	level: 6
+	paths:
+		- additional-subscriptions-analytics.php
+		- src
+		- uninstall.php
+	scanFiles:
+		- phpstan-stubs/wordpress.php
+	tmpDir: .phpstan-cache
+	treatPhpDocTypesAsCertain: false
+	ignoreErrors:
+		-
+			message: '#Constant ASA_[A-Z_]+ not found#'
+			path: src/*

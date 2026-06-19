@@ -1,0 +1,12 @@
+{
+	"plugins": [
+		"/Users/nicw/Code/GitHub/woocommerce/plugins/woocommerce",
+		"/Users/nicw/Code/GitHub/woocommerce-subscriptions",
+		"."
+	],
+	"config": {
+		"WP_DEBUG": true,
+		"WP_DEBUG_LOG": true,
+		"WP_DEBUG_DISPLAY": false
+	}
+}

@@ -1,0 +1,40 @@
+{
+	"name": "woocommerce/additional-subscriptions-analytics",
+	"description": "Native WooCommerce Analytics reports backed by subscription analytics lookup tables.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=8.0"
+	},
+	"require-dev": {
+		"dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
+		"phpstan/phpstan": "^1.12",
+		"phpunit/phpunit": "^9.6",
+		"woocommerce/woocommerce-sniffs": "^1.0",
+		"wp-coding-standards/wpcs": "^3.3",
+		"yoast/phpunit-polyfills": "^2.0"
+	},
+	"autoload": {
+		"classmap": [
+			"src/"
+		]
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"AdditionalSubscriptionsAnalytics\\Tests\\": "tests/"
+		}
+	},
+	"scripts": {
+		"lint": "phpcs",
+		"lint:fix": "phpcbf",
+		"phpstan": "phpstan analyse",
+		"test": "phpunit"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		},
+		"sort-packages": true
+	}
+}

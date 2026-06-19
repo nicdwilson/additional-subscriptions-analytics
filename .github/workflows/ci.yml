@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          tools: composer
+      - name: Validate composer.json
+        run: composer validate --strict
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-progress
+      - name: PHP syntax check
+        run: find . -path ./vendor -prune -o -path ./node_modules -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: PHPCS
+        run: composer lint
+
+  node-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Validate package metadata
+        run: npm pkg get name version scripts
+      - name: Install Node dependencies
+        run: npm ci
+      - name: JS lint
+        run: npm run lint:js
+      - name: JS build
+        run: npm run build

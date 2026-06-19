@@ -32,6 +32,15 @@ wp-config.php
 # Log files
 *.log
 
+# Dependencies and build artifacts
+/vendor/
+/node_modules/
+/build/
+/coverage-report/
+/.phpstan-cache/
+/.phpunit.result.cache
+/tests/E2E/.auth/
+
 # htaccess
 /.htaccess
 
