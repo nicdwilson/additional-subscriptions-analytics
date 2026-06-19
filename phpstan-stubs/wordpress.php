@@ -83,6 +83,26 @@ class wpdb {
 	public function get_var( string $query ): ?string {}
 
 	/**
+	 * Get one row.
+	 *
+	 * @param string $query  SQL query.
+	 * @param mixed  $output Optional output format.
+	 *
+	 * @return object|array<string,mixed>|null
+	 */
+	public function get_row( string $query, mixed $output = null ): object|array|null {}
+
+	/**
+	 * Get result rows.
+	 *
+	 * @param string $query  SQL query.
+	 * @param mixed  $output Optional output format.
+	 *
+	 * @return array<int,object|array<string,mixed>>
+	 */
+	public function get_results( string $query, mixed $output = null ): array {}
+
+	/**
 	 * Get one column.
 	 *
 	 * @param string $query SQL query.
@@ -117,6 +137,18 @@ $wpdb = new wpdb();
  * @return true
  */
 function add_action( string $hook_name, callable $callback, int $priority = 10, int $accepted_args = 1 ): true {}
+
+/**
+ * Register a callback on a filter hook.
+ *
+ * @param string   $hook_name     Hook name.
+ * @param callable $callback      Callback.
+ * @param int      $priority      Priority.
+ * @param int      $accepted_args Accepted argument count.
+ *
+ * @return true
+ */
+function add_filter( string $hook_name, callable $callback, int $priority = 10, int $accepted_args = 1 ): true {}
 
 /**
  * Translate text.
@@ -218,6 +250,15 @@ function add_option( string $option, mixed $value = '', string $deprecated = '',
 function get_option( string $option, mixed $default = false ): mixed {}
 
 /**
+ * Sanitize a key string.
+ *
+ * @param string $key Source key.
+ *
+ * @return string
+ */
+function sanitize_key( string $key ): string {}
+
+/**
  * Delete an option.
  *
  * @param string $option Option name.
@@ -266,6 +307,13 @@ function dbDelta( string|array $queries = '', bool $execute = true ): array {}
  * @return string
  */
 function wc_format_decimal( mixed $number, mixed $dp = false ): string {}
+
+/**
+ * Get the WooCommerce site timezone string.
+ *
+ * @return string
+ */
+function wc_timezone_string(): string {}
 
 /**
  * Get a WooCommerce order.
@@ -380,4 +428,3 @@ class WP_CLI {
 	 */
 	public static function error( string $message ): void {}
 }
-

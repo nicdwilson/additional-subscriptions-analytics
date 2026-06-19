@@ -8,6 +8,7 @@
 
 namespace AdditionalSubscriptionsAnalytics;
 
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\DataStore as UpcomingRenewalsDataStore;
 use AdditionalSubscriptionsAnalytics\Database\Migrator;
 use AdditionalSubscriptionsAnalytics\Support\Compat;
 use AdditionalSubscriptionsAnalytics\Sync\BackfillScheduler;
@@ -89,10 +90,27 @@ final class Plugin {
 	private function init_hooks(): void {
 		\add_action( 'init', array( $this, 'maybe_migrate_database' ), 5 );
 		\add_action( 'init', array( $this, 'load_textdomain' ) );
+		\add_filter( 'woocommerce_data_stores', array( $this, 'register_data_stores' ) );
 
 		$this->backfill_scheduler->init_hooks();
 		$this->repair_commands->init_hooks();
 		$this->sync_hooks->init_hooks();
+	}
+
+	/**
+	 * Register WooCommerce data stores.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param array<string, string> $data_stores Data store class map.
+	 *
+	 * @return array<string, string>
+	 */
+	public function register_data_stores( array $data_stores ): array {
+		$data_stores['reports/upcoming-renewals'] = UpcomingRenewalsDataStore::class;
+		$data_stores['report-upcoming-renewals']  = UpcomingRenewalsDataStore::class;
+
+		return $data_stores;
 	}
 
 	/**

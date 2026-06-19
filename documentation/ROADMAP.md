@@ -369,6 +369,16 @@ deletion, and duplicate-event queueing paths.
 
 ### Phase 6 - Report Query Data Layer  *(~1.5 days)*
 
+**Status:** Complete. `UpcomingRenewalsQuery` now converts Analytics date ranges
+to GMT lookup-table windows, aggregates only plugin-owned analytics tables,
+supports sanitized status filters, whitelisted sorting, pagination, totals, and
+export-sized requests. `Analytics\UpcomingRenewals\DataStore` adapts those query
+results to the WooCommerce Analytics `GenericController` shape, and the data
+store is registered with WooCommerce. Unit and wp-env integration coverage
+exercises DST windows, active-only defaults, sorting/pagination,
+variation-level granularity, deleted product snapshots, data-store shape, and
+backfill-produced source reconciliation.
+
 - Extend `Data/TableNames.php` from Phase 4 as needed for report queries.
 - `Data/DateWindow.php`: convert Analytics `after`/`before` site-local range into
   GMT `[start, end)` windows against `next_payment_date_gmt`.

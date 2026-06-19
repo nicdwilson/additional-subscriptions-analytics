@@ -25,6 +25,24 @@ final class DateWindow {
 	public const MYSQL_FORMAT = 'Y-m-d H:i:s';
 
 	/**
+	 * Optional site timezone override.
+	 *
+	 * @var \DateTimeZone|null
+	 */
+	private ?\DateTimeZone $site_timezone;
+
+	/**
+	 * Constructor.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param \DateTimeZone|null $site_timezone Optional site timezone override.
+	 */
+	public function __construct( ?\DateTimeZone $site_timezone = null ) {
+		$this->site_timezone = $site_timezone;
+	}
+
+	/**
 	 * Normalize a date value to a GMT MySQL datetime string.
 	 *
 	 * Empty Subscriptions date values such as `0` are converted to null so they
@@ -67,6 +85,39 @@ final class DateWindow {
 	 */
 	public function current_gmt_datetime(): string {
 		return ( new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) ) )->format( self::MYSQL_FORMAT );
+	}
+
+	/**
+	 * Convert Analytics after/before params into a GMT half-open window.
+	 *
+	 * Date-only `before` values are treated as inclusive local report dates and
+	 * converted to the next local midnight, so SQL can use `< end`.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param mixed $after  Analytics after parameter.
+	 * @param mixed $before Analytics before parameter.
+	 *
+	 * @return array{start: string, end: string} GMT MySQL datetime bounds.
+	 */
+	public function analytics_range_to_gmt_window( mixed $after, mixed $before ): array {
+		$timezone = $this->get_site_timezone();
+		$start    = $this->parse_local_report_boundary( $after, $timezone, false );
+
+		if ( null === $start ) {
+			$start = new \DateTimeImmutable( 'today', $timezone );
+		}
+
+		$end = $this->parse_local_report_boundary( $before, $timezone, true );
+
+		if ( null === $end || $end <= $start ) {
+			$end = $start->modify( '+30 days' );
+		}
+
+		return array(
+			'start' => $start->setTimezone( new \DateTimeZone( 'UTC' ) )->format( self::MYSQL_FORMAT ),
+			'end'   => $end->setTimezone( new \DateTimeZone( 'UTC' ) )->format( self::MYSQL_FORMAT ),
+		);
 	}
 
 	/**
@@ -134,5 +185,75 @@ final class DateWindow {
 		}
 
 		return $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( self::MYSQL_FORMAT );
+	}
+
+	/**
+	 * Resolve the site timezone.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @return \DateTimeZone Site timezone.
+	 */
+	private function get_site_timezone(): \DateTimeZone {
+		if ( null !== $this->site_timezone ) {
+			return $this->site_timezone;
+		}
+
+		$timezone_string = 'UTC';
+
+		if ( \function_exists( 'wc_timezone_string' ) ) {
+			$timezone_string = (string) \wc_timezone_string();
+		} elseif ( \function_exists( 'get_option' ) ) {
+			$timezone_string = (string) \get_option( 'timezone_string', 'UTC' );
+		}
+
+		try {
+			return new \DateTimeZone( '' !== $timezone_string ? $timezone_string : 'UTC' );
+		} catch ( \Exception ) {
+			return new \DateTimeZone( 'UTC' );
+		}
+	}
+
+	/**
+	 * Parse an Analytics report boundary as a site-local datetime.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param mixed         $value     Report boundary value.
+	 * @param \DateTimeZone $timezone  Site timezone.
+	 * @param bool          $is_before Whether this is the `before` boundary.
+	 *
+	 * @return \DateTimeImmutable|null Parsed boundary, or null when invalid.
+	 */
+	private function parse_local_report_boundary(
+		mixed $value,
+		\DateTimeZone $timezone,
+		bool $is_before
+	): ?\DateTimeImmutable {
+		if ( $value instanceof \DateTimeInterface ) {
+			return \DateTimeImmutable::createFromInterface( $value )->setTimezone( $timezone );
+		}
+
+		if ( ! \is_scalar( $value ) ) {
+			return null;
+		}
+
+		$value = \trim( (string) $value );
+
+		if ( '' === $value ) {
+			return null;
+		}
+
+		try {
+			if ( 1 === \preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) {
+				$date = new \DateTimeImmutable( $value . ' 00:00:00', $timezone );
+
+				return $is_before ? $date->modify( '+1 day' ) : $date;
+			}
+
+			return new \DateTimeImmutable( $value, $timezone );
+		} catch ( \Exception ) {
+			return null;
+		}
 	}
 }

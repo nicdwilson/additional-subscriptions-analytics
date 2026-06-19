@@ -52,4 +52,35 @@ final class DateWindowTest extends TestCase {
 		$this->assertNull( $date_window->normalize_gmt_datetime( '0' ) );
 		$this->assertNull( $date_window->normalize_gmt_datetime( '0000-00-00 00:00:00' ) );
 	}
+
+	/**
+	 * Test local report dates convert to a half-open GMT range across DST.
+	 *
+	 * @return void
+	 */
+	public function test_analytics_date_range_converts_site_local_days_to_gmt_half_open_window(): void {
+		$date_window = new DateWindow( new \DateTimeZone( 'Pacific/Auckland' ) );
+
+		$window = $date_window->analytics_range_to_gmt_window( '2026-09-27', '2026-09-27' );
+
+		$this->assertSame( '2026-09-26 12:00:00', $window['start'] );
+		$this->assertSame( '2026-09-27 11:00:00', $window['end'] );
+	}
+
+	/**
+	 * Test local report datetimes convert exact boundaries to GMT.
+	 *
+	 * @return void
+	 */
+	public function test_analytics_datetime_range_uses_exact_site_local_boundaries(): void {
+		$date_window = new DateWindow( new \DateTimeZone( 'Pacific/Auckland' ) );
+
+		$window = $date_window->analytics_range_to_gmt_window(
+			'2026-06-17 10:30:00',
+			'2026-06-18 15:45:00'
+		);
+
+		$this->assertSame( '2026-06-16 22:30:00', $window['start'] );
+		$this->assertSame( '2026-06-18 03:45:00', $window['end'] );
+	}
 }
