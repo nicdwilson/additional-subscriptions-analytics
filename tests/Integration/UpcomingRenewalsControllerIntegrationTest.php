@@ -1,0 +1,450 @@
+<?php
+/**
+ * Integration tests for the upcoming renewals Analytics REST controller.
+ *
+ * @package AdditionalSubscriptionsAnalytics\Tests
+ */
+
+namespace AdditionalSubscriptionsAnalytics\Tests\Integration;
+
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller;
+use AdditionalSubscriptionsAnalytics\Data\SubscriptionAnalyticsRepository;
+use AdditionalSubscriptionsAnalytics\Data\TableNames;
+use AdditionalSubscriptionsAnalytics\Database\Installer;
+use PHPUnit\Framework\TestCase;
+
+if ( ! \class_exists( '\WP_UnitTestCase' ) ) {
+	/**
+	 * Fallback test case for non-WordPress PHPUnit runs.
+	 */
+	final class UpcomingRenewalsControllerIntegrationTest extends TestCase {
+
+		/**
+		 * Mark this suite skipped when WordPress test libraries are unavailable.
+		 *
+		 * @return void
+		 */
+		public function test_requires_wordpress_test_environment(): void {
+			$this->markTestSkipped( 'Upcoming renewals REST integration tests require the WordPress PHPUnit environment.' );
+		}
+	}
+
+	return;
+}
+
+/**
+ * Tests Phase 7 REST API behavior against the WordPress REST server.
+ *
+ * @covers \AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller
+ * @covers \AdditionalSubscriptionsAnalytics\Plugin
+ */
+final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
+
+	/**
+	 * Analytics repository.
+	 *
+	 * @var SubscriptionAnalyticsRepository
+	 */
+	private SubscriptionAnalyticsRepository $repository;
+
+	/**
+	 * Table name helper.
+	 *
+	 * @var TableNames
+	 */
+	private TableNames $table_names;
+
+	/**
+	 * Set up plugin-owned tables and REST routes.
+	 *
+	 * @return void
+	 */
+	public function set_up(): void {
+		parent::set_up();
+
+		if ( ! \class_exists( '\Automattic\WooCommerce\Admin\API\Reports\GenericController' ) ) {
+			$this->markTestSkipped( 'WooCommerce Admin Analytics controllers are unavailable.' );
+		}
+
+		$this->table_names = new TableNames();
+		$this->repository  = new SubscriptionAnalyticsRepository( $this->table_names );
+
+		( new Installer() )->install();
+		$this->repository->truncate_tables();
+		$this->register_controller_route();
+	}
+
+	/**
+	 * Tear down plugin-owned table data and current user.
+	 *
+	 * @return void
+	 */
+	public function tear_down(): void {
+		\wp_set_current_user( 0 );
+		$this->repository->truncate_tables();
+
+		parent::tear_down();
+	}
+
+	/**
+	 * Test plugin filters register the controller and report index entry.
+	 *
+	 * @return void
+	 */
+	public function test_plugin_registers_controller_and_report_index_entry(): void {
+		$controllers = \apply_filters( 'woocommerce_admin_rest_controllers', array() );
+		$reports     = \apply_filters( 'woocommerce_admin_reports', array() );
+		$slugs       = \array_column( $reports, 'slug' );
+
+		$this->assertContains( Controller::class, $controllers );
+		$this->assertContains( 'upcoming-renewals', $slugs );
+	}
+
+	/**
+	 * Test endpoint returns a schema-shaped payload with pagination headers and product links.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_returns_payload_pagination_headers_and_links(): void {
+		$product_id = $this->create_product( 'REST Coffee Subscription' );
+
+		$this->seed_subscription(
+			2001,
+			'active',
+			'2026-07-05 00:00:00',
+			$product_id,
+			0,
+			'REST Coffee Subscription',
+			'2',
+			'20'
+		);
+		$this->seed_subscription(
+			2002,
+			'active',
+			'2026-07-06 00:00:00',
+			9999,
+			0,
+			'Archived Tea Subscription',
+			'1',
+			'12'
+		);
+
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$response = \rest_do_request(
+			$this->get_request(
+				array(
+					'per_page' => 1,
+					'orderby'  => 'product_name',
+					'order'    => 'desc',
+				)
+			)
+		);
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 2, (int) $response->get_headers()['X-WP-Total'] );
+		$this->assertSame( 2, (int) $response->get_headers()['X-WP-TotalPages'] );
+		$this->assertCount( 1, $data );
+		$this->assertSame( $product_id, $data[0]['product_id'] );
+		$this->assertSame( 0, $data[0]['variation_id'] );
+		$this->assertSame( 'REST Coffee Subscription', $data[0]['product_name'] );
+		$this->assertSame( 2.0, $data[0]['total_qty'] );
+		$this->assertSame( 1, $data[0]['subscription_count'] );
+		$this->assertSame( 20.0, $data[0]['recurring_total'] );
+		$this->assertSame( 'USD', $data[0]['currency'] );
+		$this->assertArrayNotHasKey( 'total_quantity', $data[0] );
+		$this->assertArrayNotHasKey( 'subscriptions_count', $data[0] );
+		$this->assertArrayHasKey( '_links', $data[0] );
+		$this->assertArrayHasKey( 'product', $data[0]['_links'] );
+		$this->assertArrayHasKey( 'edit', $data[0]['_links'] );
+		$this->assertArrayHasKey( 'view', $data[0]['_links'] );
+	}
+
+	/**
+	 * Test unauthenticated and under-capability requests are rejected.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_rejects_unauthenticated_and_under_capability_requests(): void {
+		\wp_set_current_user( 0 );
+
+		$unauthenticated_response = \rest_do_request( $this->get_request() );
+
+		\wp_set_current_user( $this->create_subscriber_user() );
+
+		$subscriber_response = \rest_do_request( $this->get_request() );
+
+		$this->assertSame( 401, $unauthenticated_response->get_status() );
+		$this->assertSame( 403, $subscriber_response->get_status() );
+	}
+
+	/**
+	 * Test invalid orderby values are rejected by REST argument validation.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_rejects_invalid_orderby(): void {
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$response = \rest_do_request(
+			$this->get_request(
+				array(
+					'orderby' => 'line_total;drop',
+				)
+			)
+		);
+		$data     = $response->get_data();
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'rest_invalid_param', $data['code'] );
+	}
+
+	/**
+	 * Test endpoint returns an empty successful response before lookup rows are backfilled.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_returns_empty_success_when_tables_need_backfill(): void {
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$response = \rest_do_request( $this->get_request() );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( array(), $response->get_data() );
+		$this->assertSame( 0, (int) $response->get_headers()['X-WP-Total'] );
+		$this->assertSame( 0, (int) $response->get_headers()['X-WP-TotalPages'] );
+	}
+
+	/**
+	 * Test export columns and item mapping.
+	 *
+	 * @return void
+	 */
+	public function test_controller_export_columns_and_item_mapping(): void {
+		$controller = new Controller();
+
+		$columns = $controller->get_export_columns();
+		$row     = $controller->prepare_item_for_export(
+			array(
+				'product_name'       => 'Export Coffee',
+				'product_id'         => 15,
+				'variation_id'       => 3,
+				'total_qty'          => 2.5,
+				'subscription_count' => 4,
+				'recurring_total'    => 19.999,
+				'currency'           => 'USD',
+			)
+		);
+
+		$this->assertSame( 'Product title', $columns['product_name'] );
+		$this->assertSame( 'Renewal quantity', $columns['total_qty'] );
+		$this->assertSame( 'Export Coffee', $row['product_name'] );
+		$this->assertSame( 15, $row['product_id'] );
+		$this->assertSame( 3, $row['variation_id'] );
+		$this->assertSame( '2.50000000', $row['total_qty'] );
+		$this->assertSame( 4, $row['subscription_count'] );
+		$this->assertSame( '20.00', $row['recurring_total'] );
+		$this->assertSame( 'USD', $row['currency'] );
+	}
+
+	/**
+	 * Register the upcoming renewals route if WooCommerce has not already done so.
+	 *
+	 * @return void
+	 */
+	private function register_controller_route(): void {
+		$server = \rest_get_server();
+		$routes = $server->get_routes();
+
+		if ( ! isset( $routes['/wc-analytics/reports/upcoming-renewals'] ) ) {
+			( new Controller() )->register_routes();
+		}
+	}
+
+	/**
+	 * Build an upcoming renewals REST request.
+	 *
+	 * @param array<string, mixed> $overrides Query parameter overrides.
+	 *
+	 * @return \WP_REST_Request
+	 */
+	private function get_request( array $overrides = array() ): \WP_REST_Request {
+		$request = new \WP_REST_Request( 'GET', '/wc-analytics/reports/upcoming-renewals' );
+		$request->set_query_params(
+			\array_merge(
+				array(
+					'after'    => '2026-07-01T00:00:00+00:00',
+					'before'   => '2026-08-01T00:00:00+00:00',
+					'orderby'  => 'product_name',
+					'order'    => 'asc',
+					'per_page' => 10,
+				),
+				$overrides
+			)
+		);
+
+		return $request;
+	}
+
+	/**
+	 * Create a manager-capable user.
+	 *
+	 * @return int User ID.
+	 */
+	private function create_manager_user(): int {
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$user    = \get_user_by( 'id', $user_id );
+
+		if ( $user instanceof \WP_User ) {
+			$user->add_cap( 'manage_woocommerce' );
+		}
+
+		return (int) $user_id;
+	}
+
+	/**
+	 * Create a subscriber user with no WooCommerce management capability.
+	 *
+	 * @return int User ID.
+	 */
+	private function create_subscriber_user(): int {
+		return (int) self::factory()->user->create( array( 'role' => 'subscriber' ) );
+	}
+
+	/**
+	 * Create a simple WooCommerce product.
+	 *
+	 * @param string $name Product name.
+	 *
+	 * @return int Product ID.
+	 */
+	private function create_product( string $name ): int {
+		if ( ! \class_exists( '\WC_Product_Simple' ) ) {
+			$this->markTestSkipped( 'WooCommerce product CRUD is unavailable.' );
+		}
+
+		$product = new \WC_Product_Simple();
+		$product->set_name( $name );
+		$product->set_regular_price( '10' );
+		$product->set_price( '10' );
+		$product->save();
+
+		return (int) $product->get_id();
+	}
+
+	/**
+	 * Seed a subscription and product lookup row.
+	 *
+	 * @param int    $subscription_id       Subscription ID.
+	 * @param string $status                Subscription status.
+	 * @param string $next_payment_date_gmt Next payment date in GMT.
+	 * @param int    $product_id            Product ID.
+	 * @param int    $variation_id          Variation ID.
+	 * @param string $product_name          Product name.
+	 * @param string $quantity              Product quantity.
+	 * @param string $line_total            Line total.
+	 *
+	 * @return void
+	 */
+	private function seed_subscription(
+		int $subscription_id,
+		string $status,
+		string $next_payment_date_gmt,
+		int $product_id,
+		int $variation_id,
+		string $product_name,
+		string $quantity,
+		string $line_total
+	): void {
+		$this->repository->upsert_subscription_stats(
+			$this->get_stats_row( $subscription_id, $status, $next_payment_date_gmt, $line_total )
+		);
+		$this->repository->replace_product_lookup_rows(
+			$subscription_id,
+			array(
+				$this->get_product_row(
+					$subscription_id,
+					$product_id,
+					$variation_id,
+					$product_name,
+					$quantity,
+					$line_total
+				),
+			)
+		);
+	}
+
+	/**
+	 * Build a stats row.
+	 *
+	 * @param int    $subscription_id       Subscription ID.
+	 * @param string $status                Subscription status.
+	 * @param string $next_payment_date_gmt Next payment date in GMT.
+	 * @param string $recurring_total       Recurring total.
+	 *
+	 * @return array<string, int|string|null>
+	 */
+	private function get_stats_row(
+		int $subscription_id,
+		string $status,
+		string $next_payment_date_gmt,
+		string $recurring_total
+	): array {
+		return array(
+			'subscription_id'          => $subscription_id,
+			'parent_order_id'          => 0,
+			'customer_id'              => 1,
+			'status'                   => $status,
+			'date_created_gmt'         => '2026-06-01 00:00:00',
+			'date_updated_gmt'         => '2026-06-01 00:00:00',
+			'start_date_gmt'           => '2026-06-01 00:00:00',
+			'trial_end_date_gmt'       => null,
+			'last_payment_date_gmt'    => null,
+			'next_payment_date_gmt'    => $next_payment_date_gmt,
+			'end_date_gmt'             => null,
+			'billing_period'           => 'month',
+			'billing_interval'         => 1,
+			'recurring_total'          => $recurring_total,
+			'recurring_tax_total'      => '0.00000000',
+			'recurring_shipping_total' => '0.00000000',
+			'currency'                 => 'USD',
+			'payment_method'           => 'manual',
+			'synced_at_gmt'            => '2026-06-17 00:00:00',
+		);
+	}
+
+	/**
+	 * Build a product lookup row.
+	 *
+	 * @param int    $subscription_id Subscription ID.
+	 * @param int    $product_id      Product ID.
+	 * @param int    $variation_id    Variation ID.
+	 * @param string $product_name    Product name.
+	 * @param string $quantity        Product quantity.
+	 * @param string $line_total      Line total.
+	 *
+	 * @return array<string, int|string|null>
+	 */
+	private function get_product_row(
+		int $subscription_id,
+		int $product_id,
+		int $variation_id,
+		string $product_name,
+		string $quantity,
+		string $line_total
+	): array {
+		return array(
+			'subscription_id' => $subscription_id,
+			'line_item_id'    => $subscription_id,
+			'product_id'      => $product_id,
+			'variation_id'    => $variation_id,
+			'product_name'    => $product_name,
+			'product_qty'     => $quantity,
+			'line_subtotal'   => $line_total,
+			'line_total'      => $line_total,
+			'line_tax'        => '0.00000000',
+			'synced_at_gmt'   => '2026-06-17 00:00:00',
+		);
+	}
+}

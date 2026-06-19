@@ -151,6 +151,17 @@ function add_action( string $hook_name, callable $callback, int $priority = 10, 
 function add_filter( string $hook_name, callable $callback, int $priority = 10, int $accepted_args = 1 ): true {}
 
 /**
+ * Apply filters to a value.
+ *
+ * @param string $hook_name Hook name.
+ * @param mixed  $value     Value to filter.
+ * @param mixed  ...$args   Additional args.
+ *
+ * @return mixed
+ */
+function apply_filters( string $hook_name, mixed $value, mixed ...$args ): mixed {}
+
+/**
  * Translate text.
  *
  * @param string $text   Source text.
@@ -159,6 +170,15 @@ function add_filter( string $hook_name, callable $callback, int $priority = 10, 
  * @return string
  */
 function __( string $text, string $domain = 'default' ): string {}
+
+/**
+ * Sanitize a text field.
+ *
+ * @param string $str Source string.
+ *
+ * @return string
+ */
+function sanitize_text_field( string $str ): string {}
 
 /**
  * Escape HTML.
@@ -250,6 +270,16 @@ function add_option( string $option, mixed $value = '', string $deprecated = '',
 function get_option( string $option, mixed $default = false ): mixed {}
 
 /**
+ * Check a user capability.
+ *
+ * @param string $capability Capability name.
+ * @param mixed  ...$args    Additional args.
+ *
+ * @return bool
+ */
+function current_user_can( string $capability, mixed ...$args ): bool {}
+
+/**
  * Sanitize a key string.
  *
  * @param string $key Source key.
@@ -316,6 +346,22 @@ function wc_format_decimal( mixed $number, mixed $dp = false ): string {}
 function wc_timezone_string(): string {}
 
 /**
+ * Get the store price decimal precision.
+ *
+ * @return int
+ */
+function wc_get_price_decimals(): int {}
+
+/**
+ * Get a WooCommerce product.
+ *
+ * @param int $product_id Product ID.
+ *
+ * @return object|false
+ */
+function wc_get_product( int $product_id ): object|false {}
+
+/**
  * Get a WooCommerce order.
  *
  * @param int $order_id Order ID.
@@ -332,6 +378,41 @@ function wc_get_order( int $order_id ): object|false {}
  * @return int
  */
 function wc_get_order_id_by_order_item_id( int $item_id ): int {}
+
+/**
+ * Get the REST authorization error status.
+ *
+ * @return int
+ */
+function rest_authorization_required_code(): int {}
+
+/**
+ * Build a REST URL.
+ *
+ * @param string $path REST path.
+ *
+ * @return string
+ */
+function rest_url( string $path = '' ): string {}
+
+/**
+ * Get the edit link for a post.
+ *
+ * @param int    $post_id Post ID.
+ * @param string $context Link context.
+ *
+ * @return string|null
+ */
+function get_edit_post_link( int $post_id, string $context = 'display' ): ?string {}
+
+/**
+ * Get the permalink for a post.
+ *
+ * @param int $post_id Post ID.
+ *
+ * @return string|false
+ */
+function get_permalink( int $post_id ): string|false {}
 
 /**
  * Unschedule Action Scheduler actions.

@@ -6,6 +6,7 @@ parameters:
 		- uninstall.php
 	scanFiles:
 		- phpstan-stubs/wordpress.php
+		- phpstan-stubs/woocommerce-admin.php
 	tmpDir: .phpstan-cache
 	treatPhpDocTypesAsCertain: false
 	ignoreErrors:

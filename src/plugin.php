@@ -8,6 +8,7 @@
 
 namespace AdditionalSubscriptionsAnalytics;
 
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller as UpcomingRenewalsController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\DataStore as UpcomingRenewalsDataStore;
 use AdditionalSubscriptionsAnalytics\Database\Migrator;
 use AdditionalSubscriptionsAnalytics\Support\Compat;
@@ -91,6 +92,8 @@ final class Plugin {
 		\add_action( 'init', array( $this, 'maybe_migrate_database' ), 5 );
 		\add_action( 'init', array( $this, 'load_textdomain' ) );
 		\add_filter( 'woocommerce_data_stores', array( $this, 'register_data_stores' ) );
+		\add_filter( 'woocommerce_admin_rest_controllers', array( $this, 'register_rest_controllers' ) );
+		\add_filter( 'woocommerce_admin_reports', array( $this, 'register_analytics_reports' ) );
 
 		$this->backfill_scheduler->init_hooks();
 		$this->repair_commands->init_hooks();
@@ -111,6 +114,44 @@ final class Plugin {
 		$data_stores['report-upcoming-renewals']  = UpcomingRenewalsDataStore::class;
 
 		return $data_stores;
+	}
+
+	/**
+	 * Register WooCommerce Admin REST controllers.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param array<int, string> $controllers Controller class names.
+	 *
+	 * @return array<int, string>
+	 */
+	public function register_rest_controllers( array $controllers ): array {
+		$controllers[] = UpcomingRenewalsController::class;
+
+		return $controllers;
+	}
+
+	/**
+	 * Register the upcoming renewals report in the WooCommerce Analytics index.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param array<int, array<string, string>> $reports Analytics report definitions.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	public function register_analytics_reports( array $reports ): array {
+		$reports[] = array(
+			'slug'        => 'upcoming-renewals',
+			'description' => __(
+				'Upcoming subscription renewals by product.',
+				'additional-subscriptions-analytics'
+			),
+			'path'        => '/wc-analytics/reports/upcoming-renewals',
+			'url'         => '/analytics/upcoming-renewals',
+		);
+
+		return $reports;
 	}
 
 	/**

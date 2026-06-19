@@ -396,6 +396,15 @@ backfill-produced source reconciliation.
 
 ### Phase 7 - REST API  *(~1.5 days)*
 
+**Status:** Complete. `Analytics\UpcomingRenewals\Controller` now registers the
+WooCommerce Analytics REST report at `/wp-json/wc-analytics/reports/upcoming-renewals`,
+requires `manage_woocommerce`, exposes the public report schema, maps response
+rows from the lookup-table data store, adds product REST/edit/view links where
+available, and defines CSV export columns/item mapping. wp-env integration
+coverage exercises controller/report registration, schema-valid payloads,
+pagination headers, link generation, CSV mapping, invalid `orderby` rejection,
+auth rejection, and empty-table/backfill-needed behavior.
+
 - `Analytics/UpcomingRenewals/Controller.php` extends
   `Automattic\WooCommerce\Admin\API\Reports\GenericController` and implements the
   Analytics export interface used by WooCommerce.
