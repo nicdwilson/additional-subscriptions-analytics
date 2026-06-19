@@ -29,7 +29,7 @@ addFilter(
 			component: SubscriptionAnalyticsReimport,
 			defaultValue: '',
 			helpText: __(
-				'Backfill missing subscription analytics rows or remove and rebuild all derived subscription analytics data.',
+				'Refresh missing or incomplete subscription analytics rows without truncating tables, or remove and rebuild all derived subscription analytics data.',
 				'additional-subscriptions-analytics'
 			),
 		},

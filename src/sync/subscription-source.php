@@ -32,10 +32,13 @@ final class SubscriptionSource {
 			return array();
 		}
 
+		$page  = \max( 1, $page );
+		$limit = \max( 1, $limit );
+
 		$subscriptions = \wcs_get_subscriptions(
 			array(
-				'subscriptions_per_page' => \max( 1, $limit ),
-				'paged'                  => \max( 1, $page ),
+				'subscriptions_per_page' => $limit,
+				'offset'                 => ( $page - 1 ) * $limit,
 				'orderby'                => 'ID',
 				'order'                  => 'ASC',
 				'subscription_status'    => 'any',

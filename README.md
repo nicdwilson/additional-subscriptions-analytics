@@ -36,8 +36,8 @@ Initial activation queues a non-destructive Action Scheduler backfill
 automatically. Merchants can manage subscription analytics data from
 **WooCommerce > Analytics > Settings**:
 
-- **Backfill missing data** preserves existing lookup rows and imports missing
-  subscriptions.
+- **Backfill missing data** refreshes derived lookup rows without truncating the
+  tables, repairing missing or incomplete subscription analytics rows.
 - **Delete and rebuild data** removes plugin-owned lookup rows and performs a
   complete backfill from current WooCommerce Subscriptions source data.
 

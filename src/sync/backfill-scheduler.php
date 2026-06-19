@@ -171,15 +171,15 @@ final class BackfillScheduler {
 	}
 
 	/**
-	 * Schedule a resumable backfill.
+	 * Schedule a resumable, non-truncating backfill.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param bool $skip_existing Whether existing stats rows should be skipped.
+	 * @param bool $skip_existing Backward-compatible action argument. Existing rows are refreshed.
 	 *
 	 * @return void
 	 */
-	public function schedule_backfill( bool $skip_existing = true ): void {
+	public function schedule_backfill( bool $skip_existing = false ): void {
 		$this->set_status( self::STATUS_QUEUED );
 		$this->delete_option( Migrator::OPTION_BACKFILL_COMPLETED_AT_GMT );
 		$this->delete_option( self::OPTION_BACKFILL_FAILURE );
@@ -206,7 +206,7 @@ final class BackfillScheduler {
 			return false;
 		}
 
-		$this->schedule_backfill( true );
+		$this->schedule_backfill( false );
 
 		return true;
 	}
@@ -285,7 +285,7 @@ final class BackfillScheduler {
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param bool $skip_existing Whether existing stats rows should be skipped.
+	 * @param bool $skip_existing Backward-compatible action argument. Existing rows are refreshed.
 	 *
 	 * @return void
 	 */
@@ -319,7 +319,7 @@ final class BackfillScheduler {
 	 * @since 0.1.0
 	 *
 	 * @param int  $page          One-based page number.
-	 * @param bool $skip_existing Whether existing stats rows should be skipped.
+	 * @param bool $skip_existing Backward-compatible action argument. Existing rows are refreshed.
 	 *
 	 * @return void
 	 *
@@ -350,7 +350,7 @@ final class BackfillScheduler {
 	 * @since 0.1.0
 	 *
 	 * @param int    $page          One-based page number.
-	 * @param bool   $skip_existing Whether existing stats rows should be skipped.
+	 * @param bool   $skip_existing Backward-compatible action argument. Existing rows are refreshed.
 	 * @param string $batch_hook    Hook to schedule for the next page.
 	 *
 	 * @return void
@@ -370,10 +370,6 @@ final class BackfillScheduler {
 				$subscription_id = \max( 0, (int) $subscription_id );
 
 				if ( 0 === $subscription_id ) {
-					continue;
-				}
-
-				if ( $skip_existing && $this->repository->subscription_exists( $subscription_id ) ) {
 					continue;
 				}
 
@@ -458,7 +454,7 @@ final class BackfillScheduler {
 	 *
 	 * @param string $batch_hook    Batch hook.
 	 * @param int    $page          Next page.
-	 * @param bool   $skip_existing Whether existing rows should be skipped.
+	 * @param bool   $skip_existing Backward-compatible action argument. Existing rows are refreshed.
 	 *
 	 * @return void
 	 */

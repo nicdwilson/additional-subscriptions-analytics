@@ -271,8 +271,8 @@ Audit decisions now locked for implementation:
 - Store lifecycle options: `asa_db_version`, `asa_backfill_status`,
   `asa_backfill_started_at_gmt`, `asa_backfill_completed_at_gmt`,
   `asa_last_sync_at_gmt`.
-- `uninstall.php`: remove plugin options, scheduled actions, and plugin-owned
-  tables for this private prototype.
+- `uninstall.php`: remove plugin options/transients, Action Scheduler jobs,
+  WP-Cron hooks, and plugin-owned tables for this private prototype.
 - **Tests:** schema SQL snapshot tests; install/upgrade idempotency; indexes exist;
   uninstall cleans plugin-owned state.
 - **Exit:** fresh install and version upgrade produce correct tables and options
@@ -516,8 +516,8 @@ are unavailable in the mounted WooCommerce checkout.
 
 - Add a subscription analytics data control to **WooCommerce > Analytics >
   Settings**, matching WooCommerce's Analytics import/reimport placement.
-- Allow merchants to schedule a non-destructive backfill that preserves existing
-  rows and imports missing subscriptions.
+- Allow merchants to schedule a non-destructive backfill that refreshes derived
+  lookup rows without truncating the tables.
 - Allow merchants to schedule a full replacement regeneration that removes and
   rebuilds plugin-owned lookup rows from current WooCommerce Subscriptions data.
 - Expose current status, timestamps, last processed page, failure state, and

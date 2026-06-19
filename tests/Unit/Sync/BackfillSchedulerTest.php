@@ -18,11 +18,11 @@ use PHPUnit\Framework\TestCase;
 final class BackfillSchedulerTest extends TestCase {
 
 	/**
-	 * Test backfill skips existing stats rows when requested.
+	 * Test backfill refreshes existing stats rows when requested.
 	 *
 	 * @return void
 	 */
-	public function test_backfill_batch_skips_existing_rows(): void {
+	public function test_backfill_batch_refreshes_existing_rows(): void {
 		$source     = new BackfillTestSource(
 			array(
 				1 => array( 101, 102 ),
@@ -34,7 +34,7 @@ final class BackfillSchedulerTest extends TestCase {
 
 		$scheduler->process_backfill_batch( 1, true );
 
-		$this->assertSame( array( 102 ), $syncer->synced_subscription_ids );
+		$this->assertSame( array( 101, 102 ), $syncer->synced_subscription_ids );
 	}
 
 	/**

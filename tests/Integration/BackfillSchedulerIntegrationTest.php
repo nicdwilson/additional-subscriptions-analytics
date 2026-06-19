@@ -108,11 +108,11 @@ final class BackfillSchedulerIntegrationTest extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test backfill skips subscriptions that already have stats rows.
+	 * Test backfill refreshes subscriptions that already have stats rows.
 	 *
 	 * @return void
 	 */
-	public function test_backfill_batch_skips_existing_rows(): void {
+	public function test_backfill_batch_refreshes_existing_rows(): void {
 		$this->repository->upsert_subscription_stats(
 			$this->get_stats_row( 201, '2026-06-01 00:00:00' )
 		);
@@ -140,7 +140,7 @@ final class BackfillSchedulerIntegrationTest extends \WP_UnitTestCase {
 		$scheduler->process_backfill_batch( 1, true );
 
 		$this->assertSame( 2, $this->get_table_count( $this->table_names->subscriptions_stats() ) );
-		$this->assertSame( 'Existing Product', $this->get_product_name( 201 ) );
+		$this->assertSame( 'Should Not Replace', $this->get_product_name( 201 ) );
 		$this->assertSame( 'New Product', $this->get_product_name( 202 ) );
 	}
 
@@ -260,6 +260,44 @@ final class BackfillSchedulerIntegrationTest extends \WP_UnitTestCase {
 		$this->assertSame( 'Real Coffee Subscription', $product_row['product_name'] );
 		$this->assertSame( '3.00000000', $product_row['product_qty'] );
 		$this->assertSame( '75.00000000', $product_row['line_total'] );
+	}
+
+	/**
+	 * Test default backfill reaches real WooCommerce Subscriptions page two.
+	 *
+	 * @return void
+	 */
+	public function test_default_backfill_reads_real_woocommerce_subscriptions_second_page(): void {
+		$this->skip_if_real_subscription_storage_unavailable();
+
+		$product             = $this->create_subscription_product( 'Paged Coffee Subscription', '10' );
+		$customer_id         = $this->create_customer();
+		$subscription_ids    = array();
+		$next_payment_gmt    = gmdate( 'Y-m-d H:i:s', time() + ( 7 * DAY_IN_SECONDS ) );
+		$subscription_count  = BackfillScheduler::BATCH_SIZE + 1;
+
+		for ( $index = 1; $index <= $subscription_count; ++$index ) {
+			$subscription       = $this->create_real_subscription(
+				$customer_id,
+				$product,
+				1,
+				$next_payment_gmt
+			);
+			$subscription_ids[] = $subscription->get_id();
+		}
+
+		$last_subscription_id = (int) end( $subscription_ids );
+		$scheduler            = new BackfillScheduler( null, null, $this->repository );
+
+		$scheduler->process_backfill_batch( 1, false );
+		$scheduler->process_backfill_batch( 2, false );
+
+		foreach ( $subscription_ids as $subscription_id ) {
+			$this->assertIsArray( $this->get_stats_row_from_table( (int) $subscription_id ) );
+		}
+
+		$this->assertIsArray( $this->get_stats_row_from_table( $last_subscription_id ) );
+		$this->assertIsArray( $this->get_product_row_from_table( $last_subscription_id ) );
 	}
 
 	/**

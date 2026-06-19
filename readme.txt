@@ -44,9 +44,10 @@ activation queues a non-destructive backfill automatically.
 
 = How do I regenerate analytics tables? =
 
-Use WooCommerce > Analytics > Settings to backfill missing data or delete and
-rebuild all subscription analytics lookup rows. Operators can also use
-`wp asa regenerate` to run a full table regeneration through Action Scheduler.
+Use WooCommerce > Analytics > Settings to refresh missing or incomplete lookup
+data without truncating tables, or delete and rebuild all subscription analytics
+lookup rows. Operators can also use `wp asa regenerate` to run a full table
+regeneration through Action Scheduler.
 Use `wp asa repair-stale` for stale-row repair and `wp asa cleanup-orphans` to
 remove product lookup rows whose subscription stats row no longer exists.
 

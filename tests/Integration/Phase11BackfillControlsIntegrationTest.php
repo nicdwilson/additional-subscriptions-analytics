@@ -80,7 +80,7 @@ final class Phase11BackfillControlsIntegrationTest extends \WP_UnitTestCase {
 		if ( \function_exists( 'as_next_scheduled_action' ) ) {
 			$next_action = \as_next_scheduled_action(
 				BackfillScheduler::ACTION_INIT,
-				array( 'skip_existing' => true ),
+				array( 'skip_existing' => false ),
 				BackfillScheduler::GROUP
 			);
 
@@ -104,7 +104,7 @@ final class Phase11BackfillControlsIntegrationTest extends \WP_UnitTestCase {
 		if ( \function_exists( 'as_next_scheduled_action' ) ) {
 			$next_action = \as_next_scheduled_action(
 				BackfillScheduler::ACTION_INIT,
-				array( 'skip_existing' => true ),
+				array( 'skip_existing' => false ),
 				BackfillScheduler::GROUP
 			);
 
@@ -150,7 +150,7 @@ final class Phase11BackfillControlsIntegrationTest extends \WP_UnitTestCase {
 		$data     = $response->get_data();
 
 		$this->assertTrue( $scheduler->backfill_scheduled );
-		$this->assertTrue( $scheduler->last_skip_existing );
+		$this->assertFalse( $scheduler->last_skip_existing );
 		$this->assertFalse( $scheduler->regeneration_scheduled );
 		$this->assertTrue( $data['isActive'] );
 		$this->assertFalse( $data['canStart'] );

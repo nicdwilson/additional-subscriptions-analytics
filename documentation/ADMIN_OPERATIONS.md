@@ -30,8 +30,9 @@ Lifecycle options:
   backfills.
 - `asa_backfill_failure`: last backfill failure message.
 
-Deleting the plugin through WordPress runs `uninstall.php`, clears queued plugin
-actions, removes `asa_` options, and drops both lookup tables.
+Deleting the plugin through WordPress runs `uninstall.php`, clears plugin
+WP-Cron hooks and Action Scheduler jobs, removes `asa_` options and transients,
+and drops both lookup tables.
 
 ## Backfill And Regeneration
 
@@ -42,8 +43,8 @@ ready, is running, or has failed.
 Merchants can manage subscription analytics import state from
 **WooCommerce > Analytics > Settings**:
 
-- **Backfill missing data** preserves existing lookup rows and imports
-  subscriptions that are not already present.
+- **Backfill missing data** refreshes derived lookup rows without truncating the
+  tables, repairing missing or incomplete subscription analytics rows.
 - **Delete and rebuild data** queues a full replacement regeneration. The
   scheduled job truncates plugin-owned lookup tables, then repopulates them from
   current WooCommerce Subscriptions source data.

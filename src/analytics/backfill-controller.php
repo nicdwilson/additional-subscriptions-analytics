@@ -277,7 +277,7 @@ final class BackfillController {
 	 */
 	private function schedule_backfill(): void {
 		if ( \method_exists( $this->scheduler, 'schedule_backfill' ) ) {
-			$this->scheduler->schedule_backfill( true );
+			$this->scheduler->schedule_backfill( false );
 		}
 	}
 
