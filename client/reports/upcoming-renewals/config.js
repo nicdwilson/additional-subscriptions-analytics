@@ -16,6 +16,7 @@ import {
 	FUTURE_PERIOD_QUERY_PARAM,
 	getDefaultForwardDateRange,
 	getForwardDateQuery,
+	normalizeForwardDateQuery,
 } from '../../components/forward-date-range-filter-picker';
 
 export const REPORT_SLUG = 'upcoming-renewals';
@@ -110,6 +111,9 @@ export const filters = applyFilters(
 		{
 			label: __( 'Show', 'woocommerce' ),
 			staticParams: [
+				'period',
+				'after',
+				'before',
 				'chart',
 				'chartType',
 				'interval',
@@ -297,6 +301,8 @@ export const advancedFilters = applyFilters(
 		},
 	}
 );
+
+export { normalizeForwardDateQuery };
 
 export const getHeaders = () => [
 	{

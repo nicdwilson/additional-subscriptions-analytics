@@ -1,0 +1,87 @@
+.asa-forward-date-picker__fields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	margin: 12px 0;
+}
+
+.asa-forward-date-picker__fields .components-base-control.is-active input {
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+}
+
+.asa-forward-date-picker__calendar {
+	margin-top: 8px;
+}
+
+.asa-forward-date-picker__calendar-header {
+	align-items: center;
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.asa-forward-date-picker__month-label {
+	color: #1e1e1e;
+	font-weight: 600;
+	line-height: 32px;
+}
+
+.asa-forward-date-picker__month-button.components-button {
+	min-width: 32px;
+	padding: 0;
+}
+
+.asa-forward-date-picker__calendar-grid {
+	display: grid;
+	gap: 2px;
+	grid-template-columns: repeat(7, minmax(32px, 1fr));
+}
+
+.asa-forward-date-picker__weekday {
+	color: #757575;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 24px;
+	text-align: center;
+	text-transform: uppercase;
+}
+
+.asa-forward-date-picker__day.components-button {
+	border-radius: 2px;
+	height: 32px;
+	justify-content: center;
+	min-width: 32px;
+	padding: 0;
+}
+
+.asa-forward-date-picker__day.is-outside-month {
+	color: #757575;
+}
+
+.asa-forward-date-picker__day.is-in-range:not(.is-selected) {
+	background: #f0f6fc;
+	color: #1e1e1e;
+}
+
+.asa-forward-date-picker__day.is-today:not(.is-selected) {
+	box-shadow: inset 0 0 0 1px #2271b1;
+}
+
+.asa-forward-date-picker__day.is-selected.components-button {
+	background: #2271b1;
+	color: #fff;
+}
+
+.asa-summary-metric__value {
+	color: #1e1e1e;
+	font-size: 20px;
+	font-weight: 400;
+	line-height: 28px;
+}
+
+@media (max-width: 782px) {
+	.asa-forward-date-picker__fields {
+		grid-template-columns: 1fr;
+	}
+}

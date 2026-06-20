@@ -353,6 +353,36 @@ function wp_enqueue_script(
 ): void {}
 
 /**
+ * Enqueue a stylesheet.
+ *
+ * @param string            $handle Style handle.
+ * @param string            $src    Style URL.
+ * @param array<int,string> $deps   Dependencies.
+ * @param string|bool|null  $ver    Version.
+ * @param string            $media  Media type.
+ *
+ * @return void
+ */
+function wp_enqueue_style(
+	string $handle,
+	string $src = '',
+	array $deps = array(),
+	string|bool|null $ver = false,
+	string $media = 'all'
+): void {}
+
+/**
+ * Add stylesheet metadata.
+ *
+ * @param string $handle Style handle.
+ * @param string $key    Metadata key.
+ * @param mixed  $value  Metadata value.
+ *
+ * @return bool
+ */
+function wp_style_add_data( string $handle, string $key, mixed $value ): bool {}
+
+/**
  * Set script translations.
  *
  * @param string $handle Script handle.

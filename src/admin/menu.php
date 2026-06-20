@@ -124,6 +124,18 @@ final class Menu {
 			true
 		);
 
+		$style_path = ASA_PATH . 'build/style-index.css';
+
+		if ( \file_exists( $style_path ) ) {
+			\wp_enqueue_style(
+				self::SCRIPT_HANDLE,
+				ASA_URL . 'build/style-index.css',
+				array(),
+				(string) ( $asset['version'] ?? ASA_VERSION )
+			);
+			\wp_style_add_data( self::SCRIPT_HANDLE, 'rtl', 'replace' );
+		}
+
 		if ( \function_exists( 'wp_set_script_translations' ) ) {
 			\wp_set_script_translations(
 				self::SCRIPT_HANDLE,

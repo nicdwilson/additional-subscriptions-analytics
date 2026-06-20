@@ -3,22 +3,15 @@
  */
 /* eslint-disable import/no-unresolved, import/no-extraneous-dependencies -- WooCommerce dependency extraction externalizes WordPress and WooCommerce packages. */
 import moment from 'moment';
-import { Button, Dropdown, TabPanel } from '@wordpress/components';
-import { useState } from '@wordpress/element';
+import { Button, Dropdown, TabPanel, TextControl } from '@wordpress/components';
+import { useMemo, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { isoDateFormat } from '@woocommerce/date';
-import {
-	DateRange,
-	DropdownButton,
-	SegmentedSelection,
-} from '@woocommerce/components';
+import { DropdownButton, SegmentedSelection } from '@woocommerce/components';
 import { updateQueryString } from '@woocommerce/navigation';
 
 export const DEFAULT_FORWARD_PERIOD = 'next_30_days';
 export const FUTURE_PERIOD_QUERY_PARAM = 'future_period';
-
-const shortDateFormatPlaceholder = __( 'MM/DD/YYYY', 'woocommerce' );
-const shortDateFormat = 'MM/DD/YYYY';
 
 const padDatePart = ( value ) => String( value ).padStart( 2, '0' );
 
@@ -45,6 +38,12 @@ const addMonths = ( date, months ) => {
 	return nextDate;
 };
 
+const startOfMonth = ( date ) =>
+	new Date( date.getFullYear(), date.getMonth(), 1 );
+
+const endOfMonth = ( date ) =>
+	new Date( date.getFullYear(), date.getMonth() + 1, 0 );
+
 const toIsoDate = ( date ) =>
 	[
 		date.getFullYear(),
@@ -52,22 +51,52 @@ const toIsoDate = ( date ) =>
 		padDatePart( date.getDate() ),
 	].join( '-' );
 
+const getDateFromIso = ( value ) => {
+	if ( ! /^\d{4}-\d{2}-\d{2}$/.test( value || '' ) ) {
+		return null;
+	}
+
+	const [ year, month, day ] = value.split( '-' ).map( Number );
+	const date = new Date( year, month - 1, day );
+
+	if (
+		date.getFullYear() !== year ||
+		date.getMonth() !== month - 1 ||
+		date.getDate() !== day
+	) {
+		return null;
+	}
+
+	return date;
+};
+
 const getMoment = ( value ) => {
 	const date = moment( value, isoDateFormat, true );
 
 	return date.isValid() ? date : null;
 };
 
-const getTodayMoment = () =>
-	moment( toIsoDate( startOfToday() ), isoDateFormat );
+const getTodayIso = () => toIsoDate( startOfToday() );
+
+const getTodayMoment = () => moment( getTodayIso(), isoDateFormat );
+
+const isIsoBefore = ( date, comparison ) =>
+	moment( date, isoDateFormat, true ).isBefore(
+		moment( comparison, isoDateFormat, true ),
+		'day'
+	);
 
 const formatDateRange = ( after, before ) => {
-	if ( ! after?.isValid?.() || ! before?.isValid?.() ) {
+	const afterMoment = getMoment( after );
+	const beforeMoment = getMoment( before );
+
+	if ( ! afterMoment || ! beforeMoment ) {
 		return '';
 	}
 
 	const format = new Intl.DateTimeFormat( undefined, {
-		year: after.year() === before.year() ? undefined : 'numeric',
+		year:
+			afterMoment.year() === beforeMoment.year() ? undefined : 'numeric',
 		month: 'short',
 		day: 'numeric',
 	} );
@@ -80,8 +109,8 @@ const formatDateRange = ( after, before ) => {
 	return sprintf(
 		/* translators: 1: start date, 2: end date. */
 		__( '%1$s - %2$s', 'additional-subscriptions-analytics' ),
-		format.format( after.toDate() ),
-		endFormat.format( before.toDate() )
+		format.format( afterMoment.toDate() ),
+		endFormat.format( beforeMoment.toDate() )
 	);
 };
 
@@ -118,22 +147,14 @@ export const forwardPeriodOptions = [
 	},
 ];
 
-const compareOptions = [
-	{
-		value: 'previous_period',
-		label: __( 'Previous period', 'woocommerce' ),
-	},
-	{
-		value: 'previous_year',
-		label: __( 'Previous year', 'woocommerce' ),
-	},
-];
-
 const getPeriodConfig = ( period ) =>
 	forwardPeriodOptions.find( ( option ) => option.value === period ) ||
 	forwardPeriodOptions.find(
 		( option ) => option.value === DEFAULT_FORWARD_PERIOD
 	);
+
+const isForwardPeriod = ( period ) =>
+	forwardPeriodOptions.some( ( option ) => option.value === period );
 
 export const getForwardDateQuery = ( period = DEFAULT_FORWARD_PERIOD ) => {
 	const periodConfig = getPeriodConfig( period );
@@ -141,7 +162,6 @@ export const getForwardDateQuery = ( period = DEFAULT_FORWARD_PERIOD ) => {
 
 	return {
 		period: 'custom',
-		compare: 'previous_period',
 		[ FUTURE_PERIOD_QUERY_PARAM ]: periodConfig.value,
 		after: toIsoDate( after ),
 		before: toIsoDate( before ),
@@ -165,44 +185,50 @@ const findMatchingPreset = ( after, before ) => {
 	);
 };
 
-const getInitialPickerState = ( query ) => {
+export const normalizeForwardDateQuery = ( query = {} ) => {
 	const defaults = getForwardDateQuery();
-	const after = getMoment( query.after ) || getMoment( defaults.after );
-	const before = getMoment( query.before ) || getMoment( defaults.before );
-	const queryPeriod = query[ FUTURE_PERIOD_QUERY_PARAM ];
-	const matchingPeriod = forwardPeriodOptions.some(
-		( option ) => option.value === queryPeriod
-	)
-		? queryPeriod
-		: findMatchingPreset( query.after, query.before );
+	const after = getMoment( query.after );
+	const before = getMoment( query.before );
+	const today = getTodayMoment();
+
+	if (
+		! after ||
+		! before ||
+		after.isBefore( today, 'day' ) ||
+		before.isBefore( today, 'day' ) ||
+		before.isBefore( after, 'day' )
+	) {
+		return defaults;
+	}
+
+	const afterIso = after.format( isoDateFormat );
+	const beforeIso = before.format( isoDateFormat );
+	const matchingPreset = findMatchingPreset( afterIso, beforeIso );
+	const requestedPeriod = query[ FUTURE_PERIOD_QUERY_PARAM ];
+	const futurePeriod =
+		requestedPeriod === 'custom' || isForwardPeriod( requestedPeriod )
+			? requestedPeriod
+			: matchingPreset;
 
 	return {
-		futurePeriod: matchingPeriod,
-		compare: query.compare || defaults.compare,
-		after,
-		before,
-		focusedInput: 'startDate',
-		afterText: after ? after.format( shortDateFormat ) : '',
-		beforeText: before ? before.format( shortDateFormat ) : '',
-		afterError: null,
-		beforeError: null,
+		period: 'custom',
+		[ FUTURE_PERIOD_QUERY_PARAM ]:
+			futurePeriod === 'custom' ? 'custom' : matchingPreset,
+		after: afterIso,
+		before: beforeIso,
 	};
 };
 
-const getSecondaryDateRange = ( after, before, compare ) => {
-	if ( compare === 'previous_year' ) {
-		return {
-			after: after.clone().subtract( 1, 'year' ),
-			before: before.clone().subtract( 1, 'year' ),
-		};
-	}
-
-	const difference = before.diff( after, 'days' );
-	const secondaryBefore = after.clone().subtract( 1, 'day' );
+const getInitialPickerState = ( query ) => {
+	const normalized = normalizeForwardDateQuery( query );
 
 	return {
-		after: secondaryBefore.clone().subtract( difference, 'days' ),
-		before: secondaryBefore,
+		futurePeriod: normalized[ FUTURE_PERIOD_QUERY_PARAM ],
+		after: normalized.after,
+		before: normalized.before,
+		activeField: 'after',
+		afterError: null,
+		beforeError: null,
 	};
 };
 
@@ -213,56 +239,44 @@ const getButtonLabels = ( query ) => {
 		'custom' === state.futurePeriod
 			? __( 'Custom', 'woocommerce' )
 			: periodConfig.label;
-	const secondary = getSecondaryDateRange(
-		state.after,
-		state.before,
-		state.compare
-	);
-	const compareLabel =
-		compareOptions.find( ( option ) => option.value === state.compare )
-			?.label || compareOptions[ 0 ].label;
 
 	return [
 		`${ primaryLabel } (${ formatDateRange( state.after, state.before ) })`,
-		`${ __( 'vs.', 'woocommerce' ) } ${ compareLabel } (${ formatDateRange(
-			secondary.after,
-			secondary.before
-		) })`,
 	];
 };
 
 const getValidationErrors = ( state ) => {
-	const today = getTodayMoment();
+	const today = getTodayIso();
 	const errors = {
 		afterError: null,
 		beforeError: null,
 	};
 
-	if ( ! state.after?.isValid?.() ) {
+	if ( ! getDateFromIso( state.after ) ) {
 		errors.afterError = __(
 			'Choose a valid start date.',
 			'additional-subscriptions-analytics'
 		);
-	} else if ( state.after.isBefore( today, 'day' ) ) {
+	} else if ( isIsoBefore( state.after, today ) ) {
 		errors.afterError = __(
 			'Choose today or a future date.',
 			'additional-subscriptions-analytics'
 		);
 	}
 
-	if ( ! state.before?.isValid?.() ) {
+	if ( ! getDateFromIso( state.before ) ) {
 		errors.beforeError = __(
 			'Choose a valid end date.',
 			'additional-subscriptions-analytics'
 		);
-	} else if ( state.before.isBefore( today, 'day' ) ) {
+	} else if ( isIsoBefore( state.before, today ) ) {
 		errors.beforeError = __(
 			'Choose today or a future date.',
 			'additional-subscriptions-analytics'
 		);
 	} else if (
-		state.after?.isValid?.() &&
-		state.before.isBefore( state.after, 'day' )
+		getDateFromIso( state.after ) &&
+		isIsoBefore( state.before, state.after )
 	) {
 		errors.beforeError = __(
 			'Choose an end date on or after the start date.',
@@ -275,6 +289,156 @@ const getValidationErrors = ( state ) => {
 
 const hasValidationErrors = ( errors ) =>
 	Boolean( errors.afterError || errors.beforeError );
+
+const getCalendarDays = ( monthDate ) => {
+	const firstDay = startOfMonth( monthDate );
+	const startDate = addDays( firstDay, firstDay.getDay() * -1 );
+
+	return Array.from( { length: 42 }, ( _, index ) =>
+		addDays( startDate, index )
+	);
+};
+
+const getWeekdayLabels = () => {
+	const baseDate = new Date( 2024, 0, 7 );
+	const formatter = new Intl.DateTimeFormat( undefined, {
+		weekday: 'short',
+	} );
+
+	return Array.from( { length: 7 }, ( _, index ) =>
+		formatter.format( addDays( baseDate, index ) )
+	);
+};
+
+const getMonthLabel = ( date ) =>
+	new Intl.DateTimeFormat( undefined, {
+		month: 'long',
+		year: 'numeric',
+	} ).format( date );
+
+const getDayLabel = ( date ) =>
+	new Intl.DateTimeFormat( undefined, {
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric',
+	} ).format( date );
+
+const getDayStateClassName = ( date, state, calendarMonth ) => {
+	const isoDate = toIsoDate( date );
+	const isSelected = isoDate === state.after || isoDate === state.before;
+	const isInRange =
+		! isIsoBefore( isoDate, state.after ) &&
+		! isIsoBefore( state.before, isoDate );
+
+	return [
+		'asa-forward-date-picker__day',
+		date.getMonth() !== calendarMonth.getMonth() ? 'is-outside-month' : '',
+		isSelected ? 'is-selected' : '',
+		isInRange && ! isSelected ? 'is-in-range' : '',
+		isoDate === getTodayIso() ? 'is-today' : '',
+	]
+		.filter( Boolean )
+		.join( ' ' );
+};
+
+const ForwardCalendar = ( { state, updateState } ) => {
+	const selectedMonth = getDateFromIso( state.after ) || startOfToday();
+	const [ calendarMonth, setCalendarMonth ] = useState( () =>
+		startOfMonth( selectedMonth )
+	);
+	const weekdays = useMemo( () => getWeekdayLabels(), [] );
+	const days = getCalendarDays( calendarMonth );
+	const today = startOfToday();
+	const previousMonth = addMonths( calendarMonth, -1 );
+	const canShowPreviousMonth = endOfMonth( previousMonth ) >= today;
+
+	const selectDate = ( date ) => {
+		const selectedDate = toIsoDate( date );
+
+		if ( state.activeField === 'after' ) {
+			updateState( {
+				futurePeriod: 'custom',
+				after: selectedDate,
+				before: isIsoBefore( state.before, selectedDate )
+					? selectedDate
+					: state.before,
+				activeField: 'before',
+				afterError: null,
+				beforeError: null,
+			} );
+			return;
+		}
+
+		updateState( {
+			futurePeriod: 'custom',
+			before: selectedDate,
+			activeField: 'after',
+			afterError: null,
+			beforeError: null,
+		} );
+	};
+
+	return (
+		<div className="asa-forward-date-picker__calendar">
+			<div className="asa-forward-date-picker__calendar-header">
+				<Button
+					className="asa-forward-date-picker__month-button"
+					disabled={ ! canShowPreviousMonth }
+					label={ __( 'Previous month', 'woocommerce' ) }
+					onClick={ () => setCalendarMonth( previousMonth ) }
+				>
+					<span aria-hidden="true">&lt;</span>
+				</Button>
+				<div className="asa-forward-date-picker__month-label">
+					{ getMonthLabel( calendarMonth ) }
+				</div>
+				<Button
+					className="asa-forward-date-picker__month-button"
+					label={ __( 'Next month', 'woocommerce' ) }
+					onClick={ () =>
+						setCalendarMonth( addMonths( calendarMonth, 1 ) )
+					}
+				>
+					<span aria-hidden="true">&gt;</span>
+				</Button>
+			</div>
+			<div className="asa-forward-date-picker__calendar-grid">
+				{ weekdays.map( ( weekday ) => (
+					<div
+						key={ weekday }
+						className="asa-forward-date-picker__weekday"
+					>
+						{ weekday }
+					</div>
+				) ) }
+				{ days.map( ( day ) => {
+					const isoDate = toIsoDate( day );
+					const isDisabled = day < today;
+
+					return (
+						<Button
+							key={ isoDate }
+							className={ getDayStateClassName(
+								day,
+								state,
+								calendarMonth
+							) }
+							disabled={ isDisabled }
+							onClick={ () => selectDate( day ) }
+							aria-pressed={
+								isoDate === state.after ||
+								isoDate === state.before
+							}
+							label={ getDayLabel( day ) }
+						>
+							{ day.getDate() }
+						</Button>
+					);
+				} ) }
+			</div>
+		</div>
+	);
+};
 
 const ForwardDateRangeContent = ( { onClose, onSelect, query } ) => {
 	const [ state, setState ] = useState( () =>
@@ -294,36 +458,28 @@ const ForwardDateRangeContent = ( { onClose, onSelect, query } ) => {
 		const [ afterDate, beforeDate ] = periodConfig.getRange(
 			startOfToday()
 		);
-		const after = moment( toIsoDate( afterDate ), isoDateFormat );
-		const before = moment( toIsoDate( beforeDate ), isoDateFormat );
 
 		updateState( {
 			futurePeriod: nextPeriod,
-			after,
-			before,
-			afterText: after.format( shortDateFormat ),
-			beforeText: before.format( shortDateFormat ),
+			after: toIsoDate( afterDate ),
+			before: toIsoDate( beforeDate ),
 			afterError: null,
 			beforeError: null,
 		} );
 	};
 
-	const onCompareSelect = ( update ) => {
+	const onDateInputChange = ( key ) => ( value ) => {
 		updateState( {
-			compare: update.compare,
+			futurePeriod: 'custom',
+			[ key ]: value,
+			activeField: key,
+			afterError: null,
+			beforeError: null,
 		} );
 	};
 
 	const resetCustomValues = () => {
-		const defaults = getInitialPickerState( getForwardDateQuery() );
-		updateState( {
-			after: defaults.after,
-			before: defaults.before,
-			afterText: defaults.afterText,
-			beforeText: defaults.beforeText,
-			afterError: null,
-			beforeError: null,
-		} );
+		updateState( getInitialPickerState( getForwardDateQuery() ) );
 	};
 
 	const selectRange = ( selectedTab ) => ( event ) => {
@@ -337,31 +493,29 @@ const ForwardDateRangeContent = ( { onClose, onSelect, query } ) => {
 		onSelect(
 			{
 				period: 'custom',
-				compare: state.compare,
 				[ FUTURE_PERIOD_QUERY_PARAM ]:
 					selectedTab === 'custom' ? 'custom' : state.futurePeriod,
-				after: state.after.format( isoDateFormat ),
-				before: state.before.format( isoDateFormat ),
+				after: state.after,
+				before: state.before,
 			},
 			event
 		);
 		onClose( event );
 	};
 
-	const isFutureDateInvalid = ( date ) =>
-		moment( date ).isBefore( getTodayMoment(), 'day' );
 	const errors = getValidationErrors( state );
 	const updateDisabled = hasValidationErrors( errors );
 	const afterError = state.afterError || errors.afterError;
 	const beforeError = state.beforeError || errors.beforeError;
 	const initialTabName =
 		'custom' === state.futurePeriod ? 'custom' : 'period';
+	const today = getTodayIso();
 
 	return (
-		<div>
+		<div className="asa-forward-date-picker">
 			<div className="screen-reader-text" tabIndex="0">
 				{ __(
-					'Select future date range and comparison',
+					'Select future date range',
 					'additional-subscriptions-analytics'
 				) }
 			</div>
@@ -409,21 +563,64 @@ const ForwardDateRangeContent = ( { onClose, onSelect, query } ) => {
 								/>
 							) }
 							{ selected.name === 'custom' && (
-								<DateRange
-									after={ state.after }
-									before={ state.before }
-									onUpdate={ updateState }
-									isInvalidDate={ isFutureDateInvalid }
-									focusedInput={ state.focusedInput }
-									afterText={ state.afterText }
-									beforeText={ state.beforeText }
-									afterError={ afterError }
-									beforeError={ beforeError }
-									shortDateFormat={ shortDateFormat }
-									shortDateFormatPlaceholder={
-										shortDateFormatPlaceholder
-									}
-								/>
+								<div className="asa-forward-date-picker__custom">
+									<div className="asa-forward-date-picker__fields">
+										<TextControl
+											__next40pxDefaultSize
+											__nextHasNoMarginBottom
+											className={
+												state.activeField === 'after'
+													? 'is-active'
+													: ''
+											}
+											label={ __(
+												'Start date',
+												'woocommerce'
+											) }
+											min={ today }
+											onChange={ onDateInputChange(
+												'after'
+											) }
+											onFocus={ () =>
+												updateState( {
+													activeField: 'after',
+												} )
+											}
+											type="date"
+											value={ state.after }
+											help={ afterError || undefined }
+										/>
+										<TextControl
+											__next40pxDefaultSize
+											__nextHasNoMarginBottom
+											className={
+												state.activeField === 'before'
+													? 'is-active'
+													: ''
+											}
+											label={ __(
+												'End date',
+												'woocommerce'
+											) }
+											min={ state.after || today }
+											onChange={ onDateInputChange(
+												'before'
+											) }
+											onFocus={ () =>
+												updateState( {
+													activeField: 'before',
+												} )
+											}
+											type="date"
+											value={ state.before }
+											help={ beforeError || undefined }
+										/>
+									</div>
+									<ForwardCalendar
+										state={ state }
+										updateState={ updateState }
+									/>
+								</div>
 							) }
 							<div
 								className={ `woocommerce-filters-date__content-controls${
@@ -432,19 +629,6 @@ const ForwardDateRangeContent = ( { onClose, onSelect, query } ) => {
 										: ''
 								}` }
 							>
-								<h3 className="woocommerce-filters-date__text">
-									{ __( 'compare to', 'woocommerce' ) }
-								</h3>
-								<SegmentedSelection
-									options={ compareOptions }
-									selected={ state.compare }
-									onSelect={ onCompareSelect }
-									name="compare"
-									legend={ __(
-										'select a comparison period',
-										'woocommerce'
-									) }
-								/>
 								<div className="woocommerce-filters-date__button-group">
 									{ selected.name === 'custom' && (
 										<Button

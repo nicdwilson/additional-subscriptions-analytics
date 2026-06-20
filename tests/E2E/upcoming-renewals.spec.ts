@@ -53,6 +53,17 @@ const runWpCli = ( args: string[] ) => {
 	);
 };
 
+const getFutureDayLabel = ( daysFromNow: number ) => {
+	const date = new Date();
+	date.setDate( date.getDate() + daysFromNow );
+
+	return new Intl.DateTimeFormat( undefined, {
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric',
+	} ).format( date );
+};
+
 test.beforeAll( () => {
 	runWpCli( [ 'eval-file', 'tests/E2E/fixtures/seed-phase8.php' ] );
 } );
@@ -73,12 +84,28 @@ test( 'merchant can use the upcoming renewal products report', async ( { page } 
 	await expect(
 		page.getByRole( 'button', { name: /Next 30 days/ } )
 	).toBeVisible();
+	await expect( page.getByText( /Previous period:/ ) ).toHaveCount( 0 );
+	await expect( page.getByText( /Previous year:/ ) ).toHaveCount( 0 );
 	await expect(
 		page.getByRole( 'button', { name: 'All upcoming renewal products' } )
 	).toBeVisible();
 	await expect( page.getByText( 'Renewals' ).first() ).toBeVisible();
 	await expect( page.getByText( 'Phase 8 Coffee' ) ).toBeVisible();
 	await expect( page.getByText( 'Phase 8 Cocoa' ) ).toBeVisible();
+
+	await page.getByRole( 'button', { name: /Next 30 days/ } ).click();
+	await expect( page.getByText( 'compare to' ) ).toHaveCount( 0 );
+	await page.getByRole( 'tab', { name: 'Custom' } ).click();
+	await page
+		.getByRole( 'button', { name: getFutureDayLabel( 7 ) } )
+		.click();
+	await expect(
+		page.getByRole( 'button', { name: 'Update' } )
+	).toBeVisible();
+	await page.getByRole( 'button', { name: 'Update' } ).click();
+	await expect(
+		page.getByRole( 'button', { name: /Custom/ } )
+	).toBeVisible();
 
 	await page
 		.getByRole( 'button', { name: 'All upcoming renewal products' } )

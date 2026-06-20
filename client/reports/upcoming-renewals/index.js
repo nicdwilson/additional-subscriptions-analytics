@@ -18,7 +18,6 @@ import {
 import {
 	EXPORT_STORE_NAME,
 	getReportChartData,
-	getSummaryNumbers,
 	getTooltipValueFormat,
 	getReportTableData,
 	reportsStore,
@@ -29,16 +28,13 @@ import {
 	FilterPicker,
 	Link,
 	SummaryList,
-	SummaryNumber,
 	TableCard,
 } from '@woocommerce/components';
-import { calculateDelta, formatValue } from '@woocommerce/number';
+import { formatValue } from '@woocommerce/number';
 import {
 	getAllowedIntervalsForQuery,
 	getChartTypeForQuery,
-	getCurrentDates,
 	getDateFormatsForInterval,
-	getDateParamsFromQuery,
 	getIntervalForQuery,
 } from '@woocommerce/date';
 import { CurrencyContext } from '@woocommerce/currency';
@@ -58,22 +54,32 @@ import {
 	getDefaultDateRange,
 	getDefaultQuery,
 	getHeaders,
+	normalizeForwardDateQuery,
 } from './config';
 
 const REPORT_PATH = '/analytics/upcoming-renewals';
 
 const getInitialQuery = ( incomingQuery = {} ) => {
 	const defaults = getDefaultQuery();
+	const forwardQuery = { ...incomingQuery };
+
+	delete forwardQuery.compare;
+
+	const normalizedDateQuery = normalizeForwardDateQuery( forwardQuery );
+	const query = {
+		...defaults,
+		...forwardQuery,
+		...normalizedDateQuery,
+	};
 
 	return {
-		...defaults,
-		...incomingQuery,
+		...query,
 		paged: Number.parseInt(
-			incomingQuery.paged || incomingQuery.page || defaults.paged,
+			forwardQuery.paged || forwardQuery.page || defaults.paged,
 			10
 		),
 		per_page: Number.parseInt(
-			incomingQuery.per_page || defaults.per_page,
+			forwardQuery.per_page || defaults.per_page,
 			10
 		),
 	};
@@ -187,36 +193,68 @@ const getSelectedChart = ( query ) =>
 const createDateFormatter = ( format ) => ( date ) =>
 	formatDate( format, date );
 
-const buildChartData = (
-	primaryData,
-	secondaryData,
-	currentDates,
-	selectedChart
-) => {
+const buildChartData = ( primaryData, selectedChart ) => {
 	const primaryIntervals = primaryData?.data?.intervals || [];
-	const secondaryIntervals = secondaryData?.data?.intervals || [];
-	const primaryLabel = `${ currentDates.primary.label } (${ currentDates.primary.range })`;
-	const secondaryLabel = `${ currentDates.secondary.label } (${ currentDates.secondary.range })`;
 
-	return primaryIntervals.map( ( interval, index ) => {
-		const secondaryInterval = secondaryIntervals[ index ] || {};
+	return primaryIntervals.map( ( interval ) => ( {
+		date: formatDate( 'Y-m-d\\TH:i:s', interval.date_start ),
+		[ selectedChart.key ]: {
+			label: selectedChart.label,
+			labelDate: interval.date_start,
+			value: Number( interval.subtotals?.[ selectedChart.key ] || 0 ),
+		},
+	} ) );
+};
 
-		return {
-			date: formatDate( 'Y-m-d\\TH:i:s', interval.date_start ),
-			primary: {
-				label: primaryLabel,
-				labelDate: interval.date_start,
-				value: Number( interval.subtotals?.[ selectedChart.key ] || 0 ),
-			},
-			secondary: {
-				label: secondaryLabel,
-				labelDate: secondaryInterval.date_start || interval.date_start,
-				value: Number(
-					secondaryInterval.subtotals?.[ selectedChart.key ] || 0
-				),
-			},
-		};
-	} );
+const SummaryMetric = ( {
+	href,
+	isOpen = false,
+	label,
+	onToggle,
+	selected,
+	value,
+} ) => {
+	const Container = onToggle ? Button : Link;
+	const containerProps = onToggle
+		? {
+				'aria-expanded': isOpen,
+				onClick: onToggle,
+		  }
+		: {
+				href,
+				role: 'menuitem',
+				type: 'wc-admin',
+		  };
+	const itemClasses = [
+		'woocommerce-summary__item',
+		selected ? 'is-selected' : '',
+	]
+		.filter( Boolean )
+		.join( ' ' );
+	const containerClasses = [
+		'woocommerce-summary__item-container',
+		onToggle ? 'is-dropdown-button' : '',
+		isOpen ? 'is-dropdown-expanded' : '',
+	]
+		.filter( Boolean )
+		.join( ' ' );
+
+	return (
+		<li className={ containerClasses }>
+			<Container
+				className={ itemClasses }
+				aria-current={ selected ? 'page' : null }
+				{ ...containerProps }
+			>
+				<div className="woocommerce-summary__item-label">{ label }</div>
+				<div className="woocommerce-summary__item-data">
+					<div className="woocommerce-summary__item-value asa-summary-metric__value">
+						{ value }
+					</div>
+				</div>
+			</Container>
+		</li>
+	);
 };
 
 const SyncStatusNotice = () => {
@@ -327,7 +365,6 @@ const UpcomingRenewalsFilters = ( { path, query } ) => {
 };
 
 const UpcomingRenewalsSummary = ( {
-	defaultDateRange,
 	path,
 	query,
 	selectedChart,
@@ -342,7 +379,6 @@ const UpcomingRenewalsSummary = ( {
 
 		return formatValue( currencyConfig, type, value );
 	};
-	const { compare } = getDateParamsFromQuery( query, defaultDateRange );
 
 	if ( summaryData.isError ) {
 		return (
@@ -364,9 +400,7 @@ const UpcomingRenewalsSummary = ( {
 			{ () =>
 				charts.map( ( chart ) => {
 					const primaryValue =
-						summaryData.totals.primary?.[ chart.key ] || 0;
-					const secondaryValue =
-						summaryData.totals.secondary?.[ chart.key ] || 0;
+						summaryData.data?.totals?.[ chart.key ] || 0;
 					const newPath = { chart: chart.key };
 
 					if ( chart.orderby ) {
@@ -378,23 +412,10 @@ const UpcomingRenewalsSummary = ( {
 					}
 
 					return (
-						<SummaryNumber
+						<SummaryMetric
 							key={ chart.key }
-							delta={ calculateDelta(
-								primaryValue,
-								secondaryValue
-							) }
 							href={ getNewPath( newPath, path, query ) }
 							label={ chart.label }
-							prevLabel={
-								compare === 'previous_period'
-									? __( 'Previous period:', 'woocommerce' )
-									: __( 'Previous year:', 'woocommerce' )
-							}
-							prevValue={ formatMetricValue(
-								secondaryValue,
-								chart.type
-							) }
 							selected={ selectedChart.key === chart.key }
 							value={ formatMetricValue(
 								primaryValue,
@@ -413,7 +434,6 @@ const UpcomingRenewalsChart = ( {
 	path,
 	primaryData,
 	query,
-	secondaryData,
 	selectedChart,
 } ) => {
 	const currency = useContext( CurrencyContext );
@@ -422,14 +442,13 @@ const UpcomingRenewalsChart = ( {
 		query,
 		defaultDateRange
 	);
-	const currentDates = getCurrentDates( query, defaultDateRange );
 	const formats = getDateFormatsForInterval(
 		currentInterval,
 		primaryData?.data?.intervals?.length || 0,
 		{ type: 'php' }
 	);
 
-	if ( primaryData.isError || secondaryData.isError ) {
+	if ( primaryData.isError ) {
 		return (
 			<Notice status="error" isDismissible={ false }>
 				{ __(
@@ -445,28 +464,21 @@ const UpcomingRenewalsChart = ( {
 			allowedIntervals={ allowedIntervals }
 			chartType={ getChartTypeForQuery( query ) }
 			currency={ currency?.getCurrencyConfig?.() || {} }
-			data={ buildChartData(
-				primaryData,
-				secondaryData,
-				currentDates,
-				selectedChart
-			) }
+			data={ buildChartData( primaryData, selectedChart ) }
 			dateParser="%Y-%m-%dT%H:%M:%S"
 			emptyMessage={ __(
 				'No data for the selected date range',
 				'woocommerce'
 			) }
 			interval={ currentInterval }
-			isRequesting={
-				primaryData.isRequesting || secondaryData.isRequesting
-			}
+			isRequesting={ primaryData.isRequesting }
 			legendPosition="top"
 			legendTotals={ {
-				primary: primaryData?.data?.totals?.[ selectedChart.key ] || 0,
-				secondary:
-					secondaryData?.data?.totals?.[ selectedChart.key ] || 0,
+				[ selectedChart.key ]: Number(
+					primaryData?.data?.totals?.[ selectedChart.key ] || 0
+				),
 			} }
-			mode="time-comparison"
+			mode="item-comparison"
 			path={ path }
 			query={ query }
 			screenReaderFormat={ createDateFormatter(
@@ -505,40 +517,17 @@ const UpcomingRenewalsReport = ( {
 	const headers = useMemo( () => getHeaders(), [] );
 	const { createNotice } = useDispatch( 'core/notices' );
 	const { startExport } = useDispatch( EXPORT_STORE_NAME );
-	const { chartData, summaryData, tableData } = useSelect(
+	const { chartData, tableData } = useSelect(
 		( select ) => {
 			const selector = select( reportsStore );
 			const fields = charts.map( ( chart ) => chart.key );
 
 			return {
-				chartData: {
-					primary: getReportChartData( {
-						endpoint: REPORT_SLUG,
-						dataType: 'primary',
-						query,
-						selector,
-						limitBy: [ REPORT_SLUG ],
-						filters,
-						advancedFilters,
-						defaultDateRange,
-						fields,
-					} ),
-					secondary: getReportChartData( {
-						endpoint: REPORT_SLUG,
-						dataType: 'secondary',
-						query,
-						selector,
-						limitBy: [ REPORT_SLUG ],
-						filters,
-						advancedFilters,
-						defaultDateRange,
-						fields,
-					} ),
-				},
-				summaryData: getSummaryNumbers( {
+				chartData: getReportChartData( {
 					endpoint: REPORT_SLUG,
+					dataType: 'primary',
 					query,
-					select,
+					selector,
 					limitBy: [ REPORT_SLUG ],
 					filters,
 					advancedFilters,
@@ -677,18 +666,16 @@ const UpcomingRenewalsReport = ( {
 			<ValidationNotice validationResult={ validationResult } />
 			<UpcomingRenewalsFilters path={ path } query={ query } />
 			<UpcomingRenewalsSummary
-				defaultDateRange={ defaultDateRange }
 				path={ path }
 				query={ query }
 				selectedChart={ selectedChart }
-				summaryData={ summaryData }
+				summaryData={ chartData }
 			/>
 			<UpcomingRenewalsChart
 				defaultDateRange={ defaultDateRange }
 				path={ path }
-				primaryData={ chartData.primary }
+				primaryData={ chartData }
 				query={ query }
-				secondaryData={ chartData.secondary }
 				selectedChart={ selectedChart }
 			/>
 			<TableCard
