@@ -101,6 +101,25 @@ final class DateWindow {
 	 * @return array{start: string, end: string} GMT MySQL datetime bounds.
 	 */
 	public function analytics_range_to_gmt_window( mixed $after, mixed $before ): array {
+		$window = $this->analytics_range_to_local_window( $after, $before );
+
+		return array(
+			'start' => $window['start']->setTimezone( new \DateTimeZone( 'UTC' ) )->format( self::MYSQL_FORMAT ),
+			'end'   => $window['end']->setTimezone( new \DateTimeZone( 'UTC' ) )->format( self::MYSQL_FORMAT ),
+		);
+	}
+
+	/**
+	 * Convert Analytics after/before params into a site-local half-open window.
+	 *
+	 * @since 0.9.2
+	 *
+	 * @param mixed $after  Analytics after parameter.
+	 * @param mixed $before Analytics before parameter.
+	 *
+	 * @return array{start: \DateTimeImmutable, end: \DateTimeImmutable} Site-local datetime bounds.
+	 */
+	public function analytics_range_to_local_window( mixed $after, mixed $before ): array {
 		$timezone = $this->get_site_timezone();
 		$start    = $this->parse_local_report_boundary( $after, $timezone, false );
 
@@ -115,8 +134,8 @@ final class DateWindow {
 		}
 
 		return array(
-			'start' => $start->setTimezone( new \DateTimeZone( 'UTC' ) )->format( self::MYSQL_FORMAT ),
-			'end'   => $end->setTimezone( new \DateTimeZone( 'UTC' ) )->format( self::MYSQL_FORMAT ),
+			'start' => $start,
+			'end'   => $end,
 		);
 	}
 
@@ -194,7 +213,7 @@ final class DateWindow {
 	 *
 	 * @return \DateTimeZone Site timezone.
 	 */
-	private function get_site_timezone(): \DateTimeZone {
+	public function get_site_timezone(): \DateTimeZone {
 		if ( null !== $this->site_timezone ) {
 			return $this->site_timezone;
 		}

@@ -8,6 +8,7 @@
 namespace AdditionalSubscriptionsAnalytics\Tests\Integration;
 
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller;
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\StatsController;
 use AdditionalSubscriptionsAnalytics\Data\SubscriptionAnalyticsRepository;
 use AdditionalSubscriptionsAnalytics\Data\TableNames;
 use AdditionalSubscriptionsAnalytics\Database\Installer;
@@ -97,6 +98,7 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 		$slugs       = \array_column( $reports, 'slug' );
 
 		$this->assertContains( Controller::class, $controllers );
+		$this->assertContains( StatsController::class, $controllers );
 		$this->assertContains( 'upcoming-renewals', $slugs );
 	}
 
@@ -217,6 +219,65 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test stats endpoint returns totals and interval data for charts.
+	 *
+	 * @return void
+	 */
+	public function test_stats_endpoint_returns_totals_intervals_and_respects_filters(): void {
+		$this->seed_subscription(
+			2011,
+			'active',
+			'2026-07-05 00:00:00',
+			81,
+			0,
+			'Stats Coffee',
+			'2',
+			'20'
+		);
+		$this->seed_subscription(
+			2012,
+			'active',
+			'2026-07-06 00:00:00',
+			82,
+			0,
+			'Other Stats Coffee',
+			'3',
+			'30'
+		);
+		$this->seed_subscription(
+			2013,
+			'on-hold',
+			'2026-07-06 00:00:00',
+			81,
+			0,
+			'Stats Coffee',
+			'4',
+			'40'
+		);
+
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$response = \rest_do_request(
+			$this->get_stats_request(
+				array(
+					'product_includes' => array( 81 ),
+					'interval'         => 'day',
+				)
+			)
+		);
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 1, $data['totals']['renewals_count'] );
+		$this->assertSame( '2.00000000', $data['totals']['renewal_quantity'] );
+		$this->assertSame( '20.00000000', $data['totals']['recurring_total'] );
+		$this->assertArrayHasKey( 'intervals', $data );
+		$this->assertCount( 6, $data['intervals'] );
+		$this->assertSame( 'day', $data['intervals'][0]['interval'] );
+		$this->assertSame( 1, $data['intervals'][4]['subtotals']->renewals_count );
+	}
+
+	/**
 	 * Test export columns and item mapping.
 	 *
 	 * @return void
@@ -260,6 +321,10 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 		if ( ! isset( $routes['/wc-analytics/reports/upcoming-renewals'] ) ) {
 			( new Controller() )->register_routes();
 		}
+
+		if ( ! isset( $routes['/wc-analytics/reports/upcoming-renewals/stats'] ) ) {
+			( new StatsController() )->register_routes();
+		}
 	}
 
 	/**
@@ -279,6 +344,30 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 					'orderby'  => 'product_name',
 					'order'    => 'asc',
 					'per_page' => 10,
+				),
+				$overrides
+			)
+		);
+
+		return $request;
+	}
+
+	/**
+	 * Build an upcoming renewals stats REST request.
+	 *
+	 * @param array<string, mixed> $overrides Query parameter overrides.
+	 *
+	 * @return \WP_REST_Request
+	 */
+	private function get_stats_request( array $overrides = array() ): \WP_REST_Request {
+		$request = new \WP_REST_Request( 'GET', '/wc-analytics/reports/upcoming-renewals/stats' );
+		$request->set_query_params(
+			\array_merge(
+				array(
+					'after'    => '2026-07-01T00:00:00+00:00',
+					'before'   => '2026-07-07T00:00:00+00:00',
+					'interval' => 'day',
+					'per_page' => 100,
 				),
 				$overrides
 			)

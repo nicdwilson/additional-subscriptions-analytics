@@ -157,6 +157,69 @@ final class UpcomingRenewalsQueryIntegrationTest extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test advanced status filters override the default active subscription scope.
+	 *
+	 * @return void
+	 */
+	public function test_query_supports_advanced_status_filters(): void {
+		$this->seed_subscription( 1151, 'active', '2026-07-05 00:00:00', 51, 0, 'Status Club', '1', '20' );
+		$this->seed_subscription( 1152, 'on-hold', '2026-07-05 00:00:00', 51, 0, 'Status Club', '3', '60' );
+
+		$results = $this->get_query()->get_data(
+			array(
+				'after'     => '2026-07-01',
+				'before'    => '2026-07-31',
+				'status_is' => array( 'on-hold' ),
+			)
+		);
+
+		$this->assertSame( 1, $results['total'] );
+		$this->assertSame( '3.00000000', $results['data'][0]['total_quantity'] );
+		$this->assertSame( 1, $results['data'][0]['subscriptions_count'] );
+	}
+
+	/**
+	 * Test stats data counts unique subscription renewals in interval buckets.
+	 *
+	 * @return void
+	 */
+	public function test_stats_data_counts_unique_renewals_and_respects_product_filters(): void {
+		$this->repository->upsert_subscription_stats(
+			$this->get_stats_row( 1161, 'active', '2026-07-05 00:00:00', '50' )
+		);
+		$first_product_row                  = $this->get_product_row( 1161, 61, 0, 'Filtered Coffee', '2', '20' );
+		$second_product_row                 = $this->get_product_row( 1161, 62, 0, 'Other Coffee', '3', '30' );
+		$second_product_row['line_item_id'] = 116102;
+		$this->repository->replace_product_lookup_rows(
+			1161,
+			array(
+				$first_product_row,
+				$second_product_row,
+			)
+		);
+		$this->seed_subscription( 1162, 'active', '2026-07-06 00:00:00', 61, 0, 'Filtered Coffee', '1', '10' );
+		$this->seed_subscription( 1163, 'on-hold', '2026-07-06 00:00:00', 61, 0, 'Filtered Coffee', '4', '40' );
+
+		$results = $this->get_query()->get_stats_data(
+			array(
+				'after'            => '2026-07-05',
+				'before'           => '2026-07-06',
+				'interval'         => 'day',
+				'product_includes' => array( 61 ),
+			)
+		);
+
+		$this->assertSame( 2, $results['totals']['renewals_count'] );
+		$this->assertSame( '3.00000000', $results['totals']['renewal_quantity'] );
+		$this->assertSame( '30.00000000', $results['totals']['recurring_total'] );
+		$this->assertCount( 2, $results['intervals'] );
+		$this->assertSame( 1, $results['intervals'][0]['subtotals']['renewals_count'] );
+		$this->assertSame( '2.00000000', $results['intervals'][0]['subtotals']['renewal_quantity'] );
+		$this->assertSame( 1, $results['intervals'][1]['subtotals']['renewals_count'] );
+		$this->assertSame( '1.00000000', $results['intervals'][1]['subtotals']['renewal_quantity'] );
+	}
+
+	/**
 	 * Test sorting and pagination are applied to grouped rows.
 	 *
 	 * @return void

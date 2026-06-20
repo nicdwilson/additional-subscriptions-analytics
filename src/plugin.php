@@ -14,6 +14,7 @@ use AdditionalSubscriptionsAnalytics\Analytics\BackfillController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller as UpcomingRenewalsController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\DataStore as UpcomingRenewalsDataStore;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\ReconciliationController;
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\StatsController as UpcomingRenewalsStatsController;
 use AdditionalSubscriptionsAnalytics\Database\Migrator;
 use AdditionalSubscriptionsAnalytics\Support\Compat;
 use AdditionalSubscriptionsAnalytics\Sync\BackfillScheduler;
@@ -167,6 +168,7 @@ final class Plugin {
 	 */
 	public function register_rest_controllers( array $controllers ): array {
 		$controllers[] = UpcomingRenewalsController::class;
+		$controllers[] = UpcomingRenewalsStatsController::class;
 
 		return $controllers;
 	}

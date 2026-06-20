@@ -68,10 +68,23 @@ test( 'merchant can use the upcoming renewals report', async ( { page } ) => {
 	await expect(
 		page.getByText( 'Subscription analytics data is ready.' )
 	).toBeVisible();
+	await expect( page.getByText( 'Date range' ) ).toBeVisible();
+	await expect( page.getByText( 'Show:' ) ).toBeVisible();
+	await expect(
+		page.getByRole( 'button', { name: 'All upcoming renewals' } )
+	).toBeVisible();
+	await expect( page.getByText( 'Renewals' ).first() ).toBeVisible();
 	await expect( page.getByText( 'Phase 8 Coffee' ) ).toBeVisible();
-
-	await page.getByRole( 'button', { name: 'Next 30 days' } ).click();
 	await expect( page.getByText( 'Phase 8 Cocoa' ) ).toBeVisible();
+
+	await page
+		.getByRole( 'button', { name: 'All upcoming renewals' } )
+		.click();
+	await page.getByRole( 'button', { name: 'Advanced filters' } ).click();
+	await expect( page.getByText( 'Upcoming renewals match' ) ).toBeVisible();
+	await expect(
+		page.getByRole( 'button', { name: 'Add a filter' } )
+	).toBeVisible();
 
 	await page
 		.getByRole( 'columnheader', { name: /Renewal quantity/ } )

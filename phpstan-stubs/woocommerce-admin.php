@@ -151,6 +151,28 @@ namespace Automattic\WooCommerce\Admin\API\Reports {
 	}
 
 	/**
+	 * WooCommerce Admin generic Analytics stats controller.
+	 */
+	abstract class GenericStatsController extends GenericController {
+
+		/**
+		 * Get the stats item properties schema.
+		 *
+		 * @return array<string,mixed>
+		 */
+		abstract protected function get_item_properties_schema();
+
+		/**
+		 * Get the stats item schema.
+		 *
+		 * @return array<string,mixed>
+		 */
+		public function get_item_schema() {
+			return array();
+		}
+	}
+
+	/**
 	 * WooCommerce Analytics exportable report interface.
 	 */
 	interface ExportableInterface {

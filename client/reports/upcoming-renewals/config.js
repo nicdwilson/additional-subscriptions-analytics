@@ -1,21 +1,29 @@
 /**
  * External dependencies
  */
-/* eslint-disable import/no-unresolved -- WooCommerce dependency extraction externalizes WordPress packages. */
-import { __ } from '@wordpress/i18n';
+/* eslint-disable import/no-unresolved, import/no-extraneous-dependencies -- WooCommerce dependency extraction externalizes WordPress and WooCommerce packages. */
+import apiFetch from '@wordpress/api-fetch';
+import { addQueryArgs } from '@wordpress/url';
+import { applyFilters } from '@wordpress/hooks';
+import { __, _x } from '@wordpress/i18n';
+import { getIdsFromQuery } from '@woocommerce/navigation';
+import { NAMESPACE } from '@woocommerce/data';
 
 export const REPORT_SLUG = 'upcoming-renewals';
 export const REPORT_TITLE = __(
 	'Upcoming renewals',
 	'additional-subscriptions-analytics'
 );
-export const DEFAULT_DATE_RANGE = 'period=custom&compare=previous_period';
 export const DEFAULT_STATUS = 'active';
 
-const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
-const FRIDAY = 5;
+const padDatePart = ( value ) => String( value ).padStart( 2, '0' );
 
-const cloneDate = ( date ) => new Date( date.getTime() );
+const toIsoDate = ( date ) =>
+	[
+		date.getFullYear(),
+		padDatePart( date.getMonth() + 1 ),
+		padDatePart( date.getDate() ),
+	].join( '-' );
 
 const startOfToday = () => {
 	const date = new Date();
@@ -25,71 +33,295 @@ const startOfToday = () => {
 };
 
 const addDays = ( date, days ) => {
-	const nextDate = cloneDate( date );
-	nextDate.setTime( nextDate.getTime() + days * DAY_IN_MILLISECONDS );
+	const nextDate = new Date( date.getTime() );
+	nextDate.setDate( nextDate.getDate() + days );
 
 	return nextDate;
 };
 
-const toIsoDate = ( date ) => date.toISOString().slice( 0, 10 );
-
-const getNextFriday = () => {
-	const today = startOfToday();
-	let daysUntilFriday = ( FRIDAY - today.getDay() + 7 ) % 7;
-
-	if ( daysUntilFriday === 0 ) {
-		daysUntilFriday = 7;
-	}
-
-	return addDays( today, daysUntilFriday );
-};
-
-const getCustomQuery = ( after, before ) => ( {
-	period: 'custom',
-	compare: 'previous_period',
-	after: toIsoDate( after ),
-	before: toIsoDate( before ),
-} );
-
-export const getPresetQuery = ( preset ) => {
+const getDefaultDateQuery = () => {
 	const today = startOfToday();
 
-	if ( preset === 'next_7_days' ) {
-		return getCustomQuery( today, addDays( today, 6 ) );
-	}
-
-	if ( preset === 'next_30_days' ) {
-		return getCustomQuery( today, addDays( today, 29 ) );
-	}
-
-	const nextFriday = getNextFriday();
-
-	return getCustomQuery( nextFriday, nextFriday );
+	return {
+		period: 'custom',
+		compare: 'previous_period',
+		after: toIsoDate( today ),
+		before: toIsoDate( addDays( today, 29 ) ),
+	};
 };
+
+const getRequestByIdString =
+	( path, handleData ) =>
+	( queryString = '', query = {} ) => {
+		const idList = getIdsFromQuery( queryString );
+
+		if ( idList.length < 1 ) {
+			return Promise.resolve( [] );
+		}
+
+		const pathString = typeof path === 'function' ? path( query ) : path;
+
+		return apiFetch( {
+			path: addQueryArgs( pathString, {
+				include: idList.join( ',' ),
+				per_page: idList.length,
+			} ),
+		} ).then( ( data ) => data.map( handleData ) );
+	};
+
+const getProductLabels = getRequestByIdString(
+	NAMESPACE + '/products',
+	( product ) => ( {
+		key: product.id,
+		label: product.name,
+	} )
+);
+
+const getVariationLabels = getRequestByIdString(
+	( { products } = {} ) =>
+		products
+			? NAMESPACE + `/products/${ products }/variations`
+			: NAMESPACE + '/variations',
+	( variation ) => ( {
+		key: variation.id,
+		label: variation.name,
+	} )
+);
+
+export const getDefaultDateRange = () =>
+	new URLSearchParams( getDefaultDateQuery() ).toString();
 
 export const getDefaultQuery = () => ( {
-	...getPresetQuery( 'next_friday' ),
+	...getDefaultDateQuery(),
 	orderby: 'product_name',
 	order: 'asc',
 	paged: 1,
 	per_page: 25,
-	status: DEFAULT_STATUS,
 } );
 
-export const presets = [
+export const charts = applyFilters(
+	'additional_subscriptions_analytics_upcoming_renewals_report_charts',
+	[
+		{
+			key: 'renewals_count',
+			label: __( 'Renewals', 'additional-subscriptions-analytics' ),
+			type: 'number',
+		},
+		{
+			key: 'renewal_quantity',
+			label: __(
+				'Renewal quantity',
+				'additional-subscriptions-analytics'
+			),
+			order: 'desc',
+			orderby: 'total_qty',
+			type: 'number',
+		},
+		{
+			key: 'recurring_total',
+			label: __(
+				'Recurring total',
+				'additional-subscriptions-analytics'
+			),
+			order: 'desc',
+			orderby: 'recurring_total',
+			type: 'currency',
+		},
+	]
+);
+
+export const filters = applyFilters(
+	'additional_subscriptions_analytics_upcoming_renewals_report_filters',
+	[
+		{
+			label: __( 'Show', 'woocommerce' ),
+			staticParams: [
+				'chart',
+				'chartType',
+				'interval',
+				'orderby',
+				'order',
+				'paged',
+				'per_page',
+			],
+			param: 'filter',
+			showFilters: () => true,
+			filters: [
+				{
+					label: __(
+						'All upcoming renewals',
+						'additional-subscriptions-analytics'
+					),
+					value: 'all',
+				},
+				{
+					label: __( 'Advanced filters', 'woocommerce' ),
+					value: 'advanced',
+				},
+			],
+		},
+	]
+);
+
+export const advancedFilters = applyFilters(
+	'additional_subscriptions_analytics_upcoming_renewals_report_advanced_filters',
 	{
-		key: 'next_friday',
-		label: __( 'Next Friday', 'additional-subscriptions-analytics' ),
-	},
-	{
-		key: 'next_7_days',
-		label: __( 'Next 7 days', 'additional-subscriptions-analytics' ),
-	},
-	{
-		key: 'next_30_days',
-		label: __( 'Next 30 days', 'additional-subscriptions-analytics' ),
-	},
-];
+		title: _x(
+			'Upcoming renewals match <select/> filters',
+			'A sentence describing filters for upcoming renewals.',
+			'additional-subscriptions-analytics'
+		),
+		filters: {
+			status: {
+				labels: {
+					add: __(
+						'Subscription status',
+						'additional-subscriptions-analytics'
+					),
+					remove: __(
+						'Remove subscription status filter',
+						'additional-subscriptions-analytics'
+					),
+					rule: __(
+						'Select a subscription status filter match',
+						'additional-subscriptions-analytics'
+					),
+					title: __(
+						'<title>Subscription status</title> <rule/> <filter/>',
+						'additional-subscriptions-analytics'
+					),
+					filter: __(
+						'Select a subscription status',
+						'additional-subscriptions-analytics'
+					),
+				},
+				rules: [
+					{
+						value: 'is',
+						label: _x(
+							'Is',
+							'subscription status',
+							'additional-subscriptions-analytics'
+						),
+					},
+					{
+						value: 'is_not',
+						label: _x(
+							'Is Not',
+							'subscription status',
+							'additional-subscriptions-analytics'
+						),
+					},
+				],
+				input: {
+					component: 'SelectControl',
+					options: [
+						{
+							value: 'active',
+							label: __(
+								'Active',
+								'additional-subscriptions-analytics'
+							),
+						},
+						{
+							value: 'on-hold',
+							label: __(
+								'On hold',
+								'additional-subscriptions-analytics'
+							),
+						},
+						{
+							value: 'pending-cancel',
+							label: __(
+								'Pending cancellation',
+								'additional-subscriptions-analytics'
+							),
+						},
+						{
+							value: 'cancelled',
+							label: __(
+								'Cancelled',
+								'additional-subscriptions-analytics'
+							),
+						},
+						{
+							value: 'expired',
+							label: __(
+								'Expired',
+								'additional-subscriptions-analytics'
+							),
+						},
+					],
+				},
+			},
+			product: {
+				labels: {
+					add: __( 'Product', 'woocommerce' ),
+					placeholder: __( 'Search products', 'woocommerce' ),
+					remove: __( 'Remove product filter', 'woocommerce' ),
+					rule: __( 'Select a product filter match', 'woocommerce' ),
+					title: __(
+						'<title>Product</title> <rule/> <filter/>',
+						'woocommerce'
+					),
+					filter: __( 'Select products', 'woocommerce' ),
+				},
+				rules: [
+					{
+						value: 'includes',
+						label: _x( 'Includes', 'products', 'woocommerce' ),
+					},
+					{
+						value: 'excludes',
+						label: _x( 'Excludes', 'products', 'woocommerce' ),
+					},
+				],
+				input: {
+					component: 'Search',
+					type: 'products',
+					getLabels: getProductLabels,
+				},
+			},
+			variation: {
+				labels: {
+					add: __( 'Product variation', 'woocommerce' ),
+					placeholder: __(
+						'Search product variations',
+						'woocommerce'
+					),
+					remove: __(
+						'Remove product variation filter',
+						'woocommerce'
+					),
+					rule: __(
+						'Select a product variation filter match',
+						'woocommerce'
+					),
+					title: __(
+						'<title>Product variation</title> <rule/> <filter/>',
+						'woocommerce'
+					),
+					filter: __( 'Select variation', 'woocommerce' ),
+				},
+				rules: [
+					{
+						value: 'includes',
+						label: _x( 'Includes', 'variations', 'woocommerce' ),
+					},
+					{
+						value: 'excludes',
+						label: _x( 'Excludes', 'variations', 'woocommerce' ),
+					},
+				],
+				input: {
+					component: 'Search',
+					type: 'variations',
+					getLabels: getVariationLabels,
+				},
+			},
+		},
+	}
+);
 
 export const getHeaders = () => [
 	{

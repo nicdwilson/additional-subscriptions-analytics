@@ -60,9 +60,27 @@ final class Controller extends GenericController implements ExportableInterface 
 				'additional-subscriptions-analytics'
 			),
 			'type'              => 'string',
-			'default'           => 'active',
 			'sanitize_callback' => 'sanitize_text_field',
 			'validate_callback' => 'rest_validate_request_arg',
+		);
+		$params['match']              = $this->get_match_param();
+		$params['status_is']          = $this->get_status_list_param(
+			__( 'Limit results to subscriptions with the specified status.', 'additional-subscriptions-analytics' )
+		);
+		$params['status_is_not']      = $this->get_status_list_param(
+			__( 'Limit results to subscriptions without the specified status.', 'additional-subscriptions-analytics' )
+		);
+		$params['product_includes']   = $this->get_id_list_param(
+			__( 'Limit results to the specified products.', 'additional-subscriptions-analytics' )
+		);
+		$params['product_excludes']   = $this->get_id_list_param(
+			__( 'Limit results to exclude the specified products.', 'additional-subscriptions-analytics' )
+		);
+		$params['variation_includes'] = $this->get_id_list_param(
+			__( 'Limit results to the specified product variations.', 'additional-subscriptions-analytics' )
+		);
+		$params['variation_excludes'] = $this->get_id_list_param(
+			__( 'Limit results to exclude the specified product variations.', 'additional-subscriptions-analytics' )
 		);
 
 		return $params;
@@ -111,6 +129,14 @@ final class Controller extends GenericController implements ExportableInterface 
 		if ( 'subscription_count' === ( $args['orderby'] ?? '' ) ) {
 			$args['orderby'] = 'subscriptions_count';
 		}
+
+		$args['match']              = $request['match'];
+		$args['status_is']          = (array) $request['status_is'];
+		$args['status_is_not']      = (array) $request['status_is_not'];
+		$args['product_includes']   = (array) $request['product_includes'];
+		$args['product_excludes']   = (array) $request['product_excludes'];
+		$args['variation_includes'] = (array) $request['variation_includes'];
+		$args['variation_excludes'] = (array) $request['variation_excludes'];
 
 		return $args;
 	}
@@ -402,5 +428,68 @@ final class Controller extends GenericController implements ExportableInterface 
 		$decimals = \function_exists( 'wc_get_price_decimals' ) ? \wc_get_price_decimals() : 2;
 
 		return \number_format( (float) $value, \max( 0, (int) $decimals ), '.', '' );
+	}
+
+	/**
+	 * Get a match-mode REST parameter definition.
+	 *
+	 * @since 0.9.2
+	 *
+	 * @return array<string, mixed> Parameter definition.
+	 */
+	private function get_match_param(): array {
+		return array(
+			'description'       => __(
+				'Indicates whether all filter conditions or any filter condition should match.',
+				'additional-subscriptions-analytics'
+			),
+			'type'              => 'string',
+			'default'           => 'all',
+			'enum'              => array( 'all', 'any' ),
+			'validate_callback' => 'rest_validate_request_arg',
+		);
+	}
+
+	/**
+	 * Get a status-list REST parameter definition.
+	 *
+	 * @since 0.9.2
+	 *
+	 * @param string $description Parameter description.
+	 *
+	 * @return array<string, mixed> Parameter definition.
+	 */
+	private function get_status_list_param( string $description ): array {
+		return array(
+			'description'       => $description,
+			'type'              => 'array',
+			'sanitize_callback' => 'wp_parse_slug_list',
+			'validate_callback' => 'rest_validate_request_arg',
+			'items'             => array(
+				'type' => 'string',
+			),
+		);
+	}
+
+	/**
+	 * Get an ID-list REST parameter definition.
+	 *
+	 * @since 0.9.2
+	 *
+	 * @param string $description Parameter description.
+	 *
+	 * @return array<string, mixed> Parameter definition.
+	 */
+	private function get_id_list_param( string $description ): array {
+		return array(
+			'description'       => $description,
+			'type'              => 'array',
+			'items'             => array(
+				'type' => 'integer',
+			),
+			'default'           => array(),
+			'sanitize_callback' => 'wp_parse_id_list',
+			'validate_callback' => 'rest_validate_request_arg',
+		);
 	}
 }

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-19T23:51:55+00:00\n"
+"POT-Creation-Date: 2026-06-20T03:53:01+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: additional-subscriptions-analytics\n"
@@ -40,7 +40,7 @@ msgid "https://woocommerce.com/"
 msgstr ""
 
 #: src/admin/menu.php:89
-#: client/reports/upcoming-renewals/config.js:8
+#: client/reports/upcoming-renewals/config.js:13
 msgid "Upcoming renewals"
 msgstr ""
 
@@ -98,78 +98,119 @@ msgstr ""
 msgid "Limit results to subscriptions with the specified status. Use \"any\" to include all statuses."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:87
+#: src/analytics/upcoming-renewals/controller.php:68
+#: src/analytics/upcoming-renewals/stats-controller.php:163
+msgid "Limit results to subscriptions with the specified status."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:71
+#: src/analytics/upcoming-renewals/stats-controller.php:166
+msgid "Limit results to subscriptions without the specified status."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:74
+#: src/analytics/upcoming-renewals/stats-controller.php:169
+msgid "Limit results to the specified products."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:77
+#: src/analytics/upcoming-renewals/stats-controller.php:172
+msgid "Limit results to exclude the specified products."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:80
+#: src/analytics/upcoming-renewals/stats-controller.php:175
+msgid "Limit results to the specified product variations."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:83
+#: src/analytics/upcoming-renewals/stats-controller.php:178
+msgid "Limit results to exclude the specified product variations."
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:105
+#: src/analytics/upcoming-renewals/stats-controller.php:97
 msgid "Sorry, you cannot view upcoming renewal analytics."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:159
+#: src/analytics/upcoming-renewals/controller.php:185
 msgid "Product ID."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:165
+#: src/analytics/upcoming-renewals/controller.php:191
 msgid "Variation ID, or 0 for simple products."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:171
+#: src/analytics/upcoming-renewals/controller.php:197
 msgid "Product name snapshot from the subscription line item."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:177
+#: src/analytics/upcoming-renewals/controller.php:203
+#: src/analytics/upcoming-renewals/stats-controller.php:202
 msgid "Total recurring product quantity due to renew."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:183
+#: src/analytics/upcoming-renewals/controller.php:209
+#: src/analytics/upcoming-renewals/stats-controller.php:195
 msgid "Number of subscriptions due to renew."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:189
+#: src/analytics/upcoming-renewals/controller.php:215
+#: src/analytics/upcoming-renewals/stats-controller.php:208
 msgid "Recurring revenue due for the renewal window."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:196
+#: src/analytics/upcoming-renewals/controller.php:222
 msgid "Subscription currency code."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:202
+#: src/analytics/upcoming-renewals/controller.php:228
 msgid "First matching next payment date in GMT."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:208
+#: src/analytics/upcoming-renewals/controller.php:234
 msgid "Last matching next payment date in GMT."
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:228
-#: client/reports/upcoming-renewals/config.js:96
+#: src/analytics/upcoming-renewals/controller.php:254
+#: client/reports/upcoming-renewals/config.js:328
 msgid "Product title"
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:229
-#: client/reports/upcoming-renewals/config.js:103
+#: src/analytics/upcoming-renewals/controller.php:255
+#: client/reports/upcoming-renewals/config.js:335
 msgid "Product ID"
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:230
-#: client/reports/upcoming-renewals/config.js:109
+#: src/analytics/upcoming-renewals/controller.php:256
+#: client/reports/upcoming-renewals/config.js:341
 msgid "Variation ID"
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:231
-#: client/reports/upcoming-renewals/config.js:115
+#: src/analytics/upcoming-renewals/controller.php:257
+#: client/reports/upcoming-renewals/config.js:112
+#: client/reports/upcoming-renewals/config.js:347
 msgid "Renewal quantity"
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:232
-#: client/reports/upcoming-renewals/config.js:122
+#: src/analytics/upcoming-renewals/controller.php:258
+#: client/reports/upcoming-renewals/config.js:354
 msgid "Subscriptions"
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:233
-#: client/reports/upcoming-renewals/config.js:129
+#: src/analytics/upcoming-renewals/controller.php:259
+#: client/reports/upcoming-renewals/config.js:122
+#: client/reports/upcoming-renewals/config.js:361
 msgid "Recurring total"
 msgstr ""
 
-#: src/analytics/upcoming-renewals/controller.php:234
+#: src/analytics/upcoming-renewals/controller.php:260
 msgid "Currency"
+msgstr ""
+
+#: src/analytics/upcoming-renewals/controller.php:442
+#: src/analytics/upcoming-renewals/stats-controller.php:226
+msgid "Indicates whether all filter conditions or any filter condition should match."
 msgstr ""
 
 #: src/analytics/upcoming-renewals/reconciliation-controller.php:97
@@ -192,7 +233,12 @@ msgstr ""
 msgid "Sorry, you cannot view upcoming renewal reconciliation diagnostics."
 msgstr ""
 
-#: src/plugin.php:186
+#: src/analytics/upcoming-renewals/stats-controller.php:194
+#: client/reports/upcoming-renewals/config.js:107
+msgid "Renewals"
+msgstr ""
+
+#: src/plugin.php:188
 msgid "Upcoming subscription renewals by product."
 msgstr ""
 
@@ -265,7 +311,7 @@ msgid "Found %1$d mismatches after scanning %2$d source subscriptions."
 msgstr ""
 
 #: src/sync/repair-commands.php:322
-#: client/reports/upcoming-renewals/index.js:193
+#: client/reports/upcoming-renewals/index.js:247
 msgid "Lookup-table totals match source subscriptions for this window."
 msgstr ""
 
@@ -273,65 +319,120 @@ msgstr ""
 msgid "Treat these as data-sync differences first; regenerate or resync before investigating report rendering."
 msgstr ""
 
-#: client/reports/upcoming-renewals/config.js:82
-msgid "Next Friday"
+#: client/reports/upcoming-renewals/config.js:151
+msgid "All upcoming renewals"
 msgstr ""
 
-#: client/reports/upcoming-renewals/config.js:86
-msgid "Next 7 days"
+#: client/reports/upcoming-renewals/config.js:169
+msgctxt "A sentence describing filters for upcoming renewals."
+msgid "Upcoming renewals match <select/> filters"
 msgstr ""
 
-#: client/reports/upcoming-renewals/config.js:90
-msgid "Next 30 days"
+#: client/reports/upcoming-renewals/config.js:177
+msgid "Subscription status"
 msgstr ""
 
-#: client/reports/upcoming-renewals/config.js:136
+#: client/reports/upcoming-renewals/config.js:181
+msgid "Remove subscription status filter"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:185
+msgid "Select a subscription status filter match"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:189
+msgid "<title>Subscription status</title> <rule/> <filter/>"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:193
+msgid "Select a subscription status"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:201
+msgctxt "subscription status"
+msgid "Is"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:209
+msgctxt "subscription status"
+msgid "Is Not"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:221
+msgid "Active"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:228
+msgid "On hold"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:235
+msgid "Pending cancellation"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:242
+msgid "Cancelled"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:249
+msgid "Expired"
+msgstr ""
+
+#: client/reports/upcoming-renewals/config.js:368
 msgid "First renewal"
 msgstr ""
 
-#: client/reports/upcoming-renewals/config.js:141
+#: client/reports/upcoming-renewals/config.js:373
 msgid "Last renewal"
 msgstr ""
 
 #. translators: %d: number of mismatches.
-#: client/reports/upcoming-renewals/index.js:205
+#: client/reports/upcoming-renewals/index.js:259
 #, js-format
 msgid "Validation reached the source scan limit and found %d data-sync differences."
 msgstr ""
 
 #. translators: %d: number of mismatches.
-#: client/reports/upcoming-renewals/index.js:218
+#: client/reports/upcoming-renewals/index.js:272
 #, js-format
 msgid "Validation found %d data-sync differences. Regenerate or resync before investigating report rendering."
 msgstr ""
 
-#: client/reports/upcoming-renewals/index.js:345
+#: client/reports/upcoming-renewals/index.js:347
+msgid "The upcoming renewals summary could not be loaded."
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:432
+msgid "The upcoming renewals chart could not be loaded."
+msgstr ""
+
+#: client/reports/upcoming-renewals/index.js:613
 msgid "There was a problem validating the upcoming renewals data. Please try again."
 msgstr ""
 
 #. translators: %s: report title.
-#: client/reports/upcoming-renewals/index.js:372
+#: client/reports/upcoming-renewals/index.js:640
 #, js-format
 msgid "Your %s report export will be emailed to you."
 msgstr ""
 
-#: client/reports/upcoming-renewals/index.js:382
+#: client/reports/upcoming-renewals/index.js:650
 msgid "There was a problem exporting the upcoming renewals report. Please try again."
 msgstr ""
 
-#: client/reports/upcoming-renewals/index.js:395
+#: client/reports/upcoming-renewals/index.js:663
 msgid "The upcoming renewals report could not be loaded."
 msgstr ""
 
-#: client/reports/upcoming-renewals/index.js:420
+#: client/reports/upcoming-renewals/index.js:704
 msgid "No upcoming renewals found for this window."
 msgstr ""
 
-#: client/reports/upcoming-renewals/index.js:432
+#: client/reports/upcoming-renewals/index.js:716
 msgid "Validate data"
 msgstr ""
 
-#: client/reports/upcoming-renewals/index.js:448
+#: client/reports/upcoming-renewals/index.js:732
 msgid "Download CSV"
 msgstr ""
 

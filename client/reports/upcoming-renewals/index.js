@@ -3,11 +3,12 @@
  */
 /* eslint-disable import/no-unresolved, import/no-extraneous-dependencies -- WooCommerce dependency extraction externalizes WordPress and WooCommerce packages. */
 import apiFetch from '@wordpress/api-fetch';
-import { Button, ButtonGroup, Notice } from '@wordpress/components';
+import { Button, Notice } from '@wordpress/components';
 import { addFilter } from '@wordpress/hooks';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, sprintf } from '@wordpress/i18n';
-import { useMemo, useState } from '@wordpress/element';
+import { format as formatDate } from '@wordpress/date';
+import { useContext, useMemo, useState } from '@wordpress/element';
 import { useDispatch, useSelect } from '@wordpress/data';
 import {
 	downloadCSVFile,
@@ -16,35 +17,66 @@ import {
 } from '@woocommerce/csv-export';
 import {
 	EXPORT_STORE_NAME,
+	getReportChartData,
+	getSummaryNumbers,
+	getTooltipValueFormat,
 	getReportTableData,
 	reportsStore,
 } from '@woocommerce/data';
-import { Link, TableCard } from '@woocommerce/components';
+import {
+	Chart,
+	Link,
+	ReportFilters,
+	SummaryList,
+	SummaryNumber,
+	TableCard,
+} from '@woocommerce/components';
+import { calculateDelta, formatValue } from '@woocommerce/number';
+import {
+	getAllowedIntervalsForQuery,
+	getChartTypeForQuery,
+	getCurrentDates,
+	getDateFormatsForInterval,
+	getDateParamsFromQuery,
+	getIntervalForQuery,
+	isoDateFormat,
+} from '@woocommerce/date';
+import { CurrencyContext } from '@woocommerce/currency';
+import { getNewPath, updateQueryString } from '@woocommerce/navigation';
 
 /**
  * Internal dependencies
  */
 import {
-	DEFAULT_DATE_RANGE,
 	DEFAULT_STATUS,
 	REPORT_SLUG,
 	REPORT_TITLE,
+	advancedFilters,
+	charts,
+	filters,
+	getDefaultDateRange,
 	getDefaultQuery,
 	getHeaders,
-	getPresetQuery,
-	presets,
 } from './config';
 
-const getInitialQuery = ( incomingQuery = {} ) => ( {
-	...getDefaultQuery(),
-	...incomingQuery,
-	paged: Number.parseInt(
-		incomingQuery.paged || incomingQuery.page || 1,
-		10
-	),
-	per_page: Number.parseInt( incomingQuery.per_page || 25, 10 ),
-	status: incomingQuery.status || DEFAULT_STATUS,
-} );
+const REPORT_PATH = '/analytics/upcoming-renewals';
+
+const getInitialQuery = ( incomingQuery = {} ) => {
+	const defaults = getDefaultQuery();
+
+	return {
+		...defaults,
+		...incomingQuery,
+		paged: Number.parseInt(
+			incomingQuery.paged || incomingQuery.page || defaults.paged,
+			10
+		),
+		per_page: Number.parseInt(
+			incomingQuery.per_page || defaults.per_page,
+			10
+		),
+	};
+};
 
 const getLinkHref = ( item, rel ) => {
 	const link = item?._links?.[ rel ];
@@ -83,7 +115,7 @@ const formatCurrency = ( value, currency ) => {
 	}
 };
 
-const formatDate = ( value ) => {
+const formatTableDate = ( value ) => {
 	if ( ! value ) {
 		return '';
 	}
@@ -138,15 +170,53 @@ const getRows = ( data = [] ) =>
 				value: item.recurring_total,
 			},
 			{
-				display: formatDate( item.first_next_payment_date_gmt ),
+				display: formatTableDate( item.first_next_payment_date_gmt ),
 				value: item.first_next_payment_date_gmt,
 			},
 			{
-				display: formatDate( item.last_next_payment_date_gmt ),
+				display: formatTableDate( item.last_next_payment_date_gmt ),
 				value: item.last_next_payment_date_gmt,
 			},
 		];
 	} );
+
+const getSelectedChart = ( query ) =>
+	charts.find( ( chart ) => chart.key === query.chart ) || charts[ 0 ];
+
+const createDateFormatter = ( format ) => ( date ) =>
+	formatDate( format, date );
+
+const buildChartData = (
+	primaryData,
+	secondaryData,
+	currentDates,
+	selectedChart
+) => {
+	const primaryIntervals = primaryData?.data?.intervals || [];
+	const secondaryIntervals = secondaryData?.data?.intervals || [];
+	const primaryLabel = `${ currentDates.primary.label } (${ currentDates.primary.range })`;
+	const secondaryLabel = `${ currentDates.secondary.label } (${ currentDates.secondary.range })`;
+
+	return primaryIntervals.map( ( interval, index ) => {
+		const secondaryInterval = secondaryIntervals[ index ] || {};
+
+		return {
+			date: formatDate( 'Y-m-d\\TH:i:s', interval.date_start ),
+			primary: {
+				label: primaryLabel,
+				labelDate: interval.date_start,
+				value: Number( interval.subtotals?.[ selectedChart.key ] || 0 ),
+			},
+			secondary: {
+				label: secondaryLabel,
+				labelDate: secondaryInterval.date_start || interval.date_start,
+				value: Number(
+					secondaryInterval.subtotals?.[ selectedChart.key ] || 0
+				),
+			},
+		};
+	} );
+};
 
 const SyncStatusNotice = () => {
 	const syncStatus = window.asaUpcomingRenewals?.syncStatus;
@@ -165,22 +235,6 @@ const SyncStatusNotice = () => {
 		</Notice>
 	);
 };
-
-const PresetButtons = ( { activePreset, onSelect } ) => (
-	<ButtonGroup className="asa-upcoming-renewals__presets">
-		{ presets.map( ( preset ) => (
-			<Button
-				key={ preset.key }
-				variant={
-					activePreset === preset.key ? 'primary' : 'secondary'
-				}
-				onClick={ () => onSelect( preset.key ) }
-			>
-				{ preset.label }
-			</Button>
-		) ) }
-	</ButtonGroup>
-);
 
 const getValidationNotice = ( validationResult ) => {
 	if ( ! validationResult ) {
@@ -238,78 +292,292 @@ const ValidationNotice = ( { validationResult } ) => {
 	);
 };
 
-const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
-	const [ activePreset, setActivePreset ] = useState( 'next_friday' );
-	const [ query, setQuery ] = useState( () =>
-		getInitialQuery( incomingQuery )
+const UpcomingRenewalsFilters = ( { defaultDateRange, path, query } ) => {
+	const { period, compare, before, after } = getDateParamsFromQuery(
+		query,
+		defaultDateRange
 	);
+	const currentDates = getCurrentDates( query, defaultDateRange );
+	const currency = useContext( CurrencyContext );
+
+	return (
+		<div className="woocommerce-analytics-report-header">
+			<ReportFilters
+				query={ query }
+				currency={ currency?.getCurrencyConfig?.() }
+				path={ path }
+				filters={ filters }
+				advancedFilters={ advancedFilters }
+				showDatePicker
+				dateQuery={ {
+					period,
+					compare,
+					before,
+					after,
+					primaryDate: currentDates.primary,
+					secondaryDate: currentDates.secondary,
+				} }
+				isoDateFormat={ isoDateFormat }
+			/>
+		</div>
+	);
+};
+
+const UpcomingRenewalsSummary = ( {
+	defaultDateRange,
+	path,
+	query,
+	selectedChart,
+	summaryData,
+} ) => {
+	const currency = useContext( CurrencyContext );
+	const currencyConfig = currency?.getCurrencyConfig?.() || {};
+	const formatMetricValue = ( value, type ) => {
+		if ( type === 'currency' && currency?.formatAmount ) {
+			return currency.formatAmount( value );
+		}
+
+		return formatValue( currencyConfig, type, value );
+	};
+	const { compare } = getDateParamsFromQuery( query, defaultDateRange );
+
+	if ( summaryData.isError ) {
+		return (
+			<Notice status="error" isDismissible={ false }>
+				{ __(
+					'The upcoming renewals summary could not be loaded.',
+					'additional-subscriptions-analytics'
+				) }
+			</Notice>
+		);
+	}
+
+	if ( summaryData.isRequesting ) {
+		return null;
+	}
+
+	return (
+		<SummaryList>
+			{ () =>
+				charts.map( ( chart ) => {
+					const primaryValue =
+						summaryData.totals.primary?.[ chart.key ] || 0;
+					const secondaryValue =
+						summaryData.totals.secondary?.[ chart.key ] || 0;
+					const newPath = { chart: chart.key };
+
+					if ( chart.orderby ) {
+						newPath.orderby = chart.orderby;
+					}
+
+					if ( chart.order ) {
+						newPath.order = chart.order;
+					}
+
+					return (
+						<SummaryNumber
+							key={ chart.key }
+							delta={ calculateDelta(
+								primaryValue,
+								secondaryValue
+							) }
+							href={ getNewPath( newPath, path, query ) }
+							label={ chart.label }
+							prevLabel={
+								compare === 'previous_period'
+									? __( 'Previous period:', 'woocommerce' )
+									: __( 'Previous year:', 'woocommerce' )
+							}
+							prevValue={ formatMetricValue(
+								secondaryValue,
+								chart.type
+							) }
+							selected={ selectedChart.key === chart.key }
+							value={ formatMetricValue(
+								primaryValue,
+								chart.type
+							) }
+						/>
+					);
+				} )
+			}
+		</SummaryList>
+	);
+};
+
+const UpcomingRenewalsChart = ( {
+	defaultDateRange,
+	path,
+	primaryData,
+	query,
+	secondaryData,
+	selectedChart,
+} ) => {
+	const currency = useContext( CurrencyContext );
+	const currentInterval = getIntervalForQuery( query, defaultDateRange );
+	const allowedIntervals = getAllowedIntervalsForQuery(
+		query,
+		defaultDateRange
+	);
+	const currentDates = getCurrentDates( query, defaultDateRange );
+	const formats = getDateFormatsForInterval(
+		currentInterval,
+		primaryData?.data?.intervals?.length || 0,
+		{ type: 'php' }
+	);
+
+	if ( primaryData.isError || secondaryData.isError ) {
+		return (
+			<Notice status="error" isDismissible={ false }>
+				{ __(
+					'The upcoming renewals chart could not be loaded.',
+					'additional-subscriptions-analytics'
+				) }
+			</Notice>
+		);
+	}
+
+	return (
+		<Chart
+			allowedIntervals={ allowedIntervals }
+			chartType={ getChartTypeForQuery( query ) }
+			currency={ currency?.getCurrencyConfig?.() || {} }
+			data={ buildChartData(
+				primaryData,
+				secondaryData,
+				currentDates,
+				selectedChart
+			) }
+			dateParser="%Y-%m-%dT%H:%M:%S"
+			emptyMessage={ __(
+				'No data for the selected date range',
+				'woocommerce'
+			) }
+			interval={ currentInterval }
+			isRequesting={
+				primaryData.isRequesting || secondaryData.isRequesting
+			}
+			legendPosition="top"
+			legendTotals={ {
+				primary: primaryData?.data?.totals?.[ selectedChart.key ] || 0,
+				secondary:
+					secondaryData?.data?.totals?.[ selectedChart.key ] || 0,
+			} }
+			mode="time-comparison"
+			path={ path }
+			query={ query }
+			screenReaderFormat={ createDateFormatter(
+				formats.screenReaderFormat
+			) }
+			showHeaderControls
+			title={ selectedChart.label }
+			tooltipLabelFormat={ createDateFormatter(
+				formats.tooltipLabelFormat
+			) }
+			tooltipTitle={ selectedChart.label }
+			tooltipValueFormat={ getTooltipValueFormat(
+				selectedChart.type,
+				currency?.formatAmount || formatNumber
+			) }
+			valueType={ selectedChart.type }
+			xFormat={ createDateFormatter( formats.xFormat ) }
+			x2Format={ createDateFormatter( formats.x2Format ) }
+		/>
+	);
+};
+
+const UpcomingRenewalsReport = ( {
+	query: incomingQuery = {},
+	path = REPORT_PATH,
+} ) => {
+	const query = useMemo(
+		() => getInitialQuery( incomingQuery ),
+		[ incomingQuery ]
+	);
+	const defaultDateRange = useMemo( () => getDefaultDateRange(), [] );
+	const selectedChart = getSelectedChart( query );
 	const [ isExporting, setIsExporting ] = useState( false );
 	const [ isValidating, setIsValidating ] = useState( false );
 	const [ validationResult, setValidationResult ] = useState( null );
 	const headers = useMemo( () => getHeaders(), [] );
 	const { createNotice } = useDispatch( 'core/notices' );
 	const { startExport } = useDispatch( EXPORT_STORE_NAME );
-	const tableData = useSelect(
-		( select ) =>
-			getReportTableData( {
-				endpoint: REPORT_SLUG,
-				query,
-				selector: select( reportsStore ),
-				tableQuery: {
-					status: query.status || DEFAULT_STATUS,
+	const { chartData, summaryData, tableData } = useSelect(
+		( select ) => {
+			const selector = select( reportsStore );
+			const fields = charts.map( ( chart ) => chart.key );
+
+			return {
+				chartData: {
+					primary: getReportChartData( {
+						endpoint: REPORT_SLUG,
+						dataType: 'primary',
+						query,
+						selector,
+						limitBy: [ REPORT_SLUG ],
+						filters,
+						advancedFilters,
+						defaultDateRange,
+						fields,
+					} ),
+					secondary: getReportChartData( {
+						endpoint: REPORT_SLUG,
+						dataType: 'secondary',
+						query,
+						selector,
+						limitBy: [ REPORT_SLUG ],
+						filters,
+						advancedFilters,
+						defaultDateRange,
+						fields,
+					} ),
 				},
-				defaultDateRange: DEFAULT_DATE_RANGE,
-			} ),
-		[ query ]
+				summaryData: getSummaryNumbers( {
+					endpoint: REPORT_SLUG,
+					query,
+					select,
+					limitBy: [ REPORT_SLUG ],
+					filters,
+					advancedFilters,
+					defaultDateRange,
+					fields,
+				} ),
+				tableData: getReportTableData( {
+					endpoint: REPORT_SLUG,
+					query,
+					selector,
+					filters,
+					advancedFilters,
+					defaultDateRange,
+				} ),
+			};
+		},
+		[ defaultDateRange, query ]
 	);
 	const items = tableData.items || {};
 	const data = useMemo( () => items.data || [], [ items.data ] );
 	const rows = useMemo( () => getRows( data ), [ data ] );
 	const totalRows = Number.parseInt( items.totalResults || 0, 10 );
 
-	const onPresetSelect = ( preset ) => {
-		setActivePreset( preset );
-		setValidationResult( null );
-		setQuery( ( currentQuery ) => ( {
-			...currentQuery,
-			...getPresetQuery( preset ),
-			paged: 1,
-		} ) );
-	};
-
 	const onQueryChange = ( param ) => ( value, direction ) => {
+		const updates = {};
+
+		if ( param === 'sort' ) {
+			updates.orderby = value;
+			updates.order = direction;
+			updates.paged = 1;
+		} else if ( param === 'paged' ) {
+			updates.paged = Number.parseInt( value, 10 ) || 1;
+		} else if ( param === 'per_page' ) {
+			updates.per_page = Number.parseInt( value, 10 ) || 25;
+			updates.paged = 1;
+		} else {
+			updates[ param ] = value;
+			updates.paged = 1;
+		}
+
 		setValidationResult( null );
-		setQuery( ( currentQuery ) => {
-			if ( param === 'sort' ) {
-				return {
-					...currentQuery,
-					orderby: value,
-					order: direction,
-					paged: 1,
-				};
-			}
-
-			if ( param === 'paged' ) {
-				return {
-					...currentQuery,
-					paged: Number.parseInt( value, 10 ) || 1,
-				};
-			}
-
-			if ( param === 'per_page' ) {
-				return {
-					...currentQuery,
-					per_page: Number.parseInt( value, 10 ) || 25,
-					paged: 1,
-				};
-			}
-
-			return {
-				...currentQuery,
-				[ param ]: value,
-				paged: 1,
-			};
-		} );
+		updateQueryString( updates, path, query );
 	};
 
 	const downloadVisibleRows = () => {
@@ -324,11 +592,11 @@ const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 			return;
 		}
 
-		const validationWindow = getPresetQuery( activePreset );
+		const reportQuery = tableData.query || query;
 		const params = new URLSearchParams( {
-			after: query.after || validationWindow.after,
-			before: query.before || validationWindow.before,
-			status: query.status || DEFAULT_STATUS,
+			after: reportQuery.after || query.after,
+			before: reportQuery.before || query.before,
+			status: query.status || query.status_is || DEFAULT_STATUS,
 			limit: '5000',
 		} );
 
@@ -404,9 +672,25 @@ const UpcomingRenewalsReport = ( { query: incomingQuery } ) => {
 		<div className="asa-upcoming-renewals">
 			<SyncStatusNotice />
 			<ValidationNotice validationResult={ validationResult } />
-			<PresetButtons
-				activePreset={ activePreset }
-				onSelect={ onPresetSelect }
+			<UpcomingRenewalsFilters
+				defaultDateRange={ defaultDateRange }
+				path={ path }
+				query={ query }
+			/>
+			<UpcomingRenewalsSummary
+				defaultDateRange={ defaultDateRange }
+				path={ path }
+				query={ query }
+				selectedChart={ selectedChart }
+				summaryData={ summaryData }
+			/>
+			<UpcomingRenewalsChart
+				defaultDateRange={ defaultDateRange }
+				path={ path }
+				primaryData={ chartData.primary }
+				query={ query }
+				secondaryData={ chartData.secondary }
+				selectedChart={ selectedChart }
 			/>
 			<TableCard
 				title={ REPORT_TITLE }
