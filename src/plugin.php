@@ -186,7 +186,7 @@ final class Plugin {
 		$reports[] = array(
 			'slug'        => 'upcoming-renewals',
 			'description' => __(
-				'Upcoming subscription renewals by product.',
+				'Upcoming subscription renewal products.',
 				'additional-subscriptions-analytics'
 			),
 			'path'        => '/wc-analytics/reports/upcoming-renewals',

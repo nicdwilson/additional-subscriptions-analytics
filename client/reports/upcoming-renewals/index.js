@@ -24,9 +24,10 @@ import {
 	reportsStore,
 } from '@woocommerce/data';
 import {
+	AdvancedFilters,
 	Chart,
+	FilterPicker,
 	Link,
-	ReportFilters,
 	SummaryList,
 	SummaryNumber,
 	TableCard,
@@ -39,7 +40,6 @@ import {
 	getDateFormatsForInterval,
 	getDateParamsFromQuery,
 	getIntervalForQuery,
-	isoDateFormat,
 } from '@woocommerce/date';
 import { CurrencyContext } from '@woocommerce/currency';
 import { getNewPath, updateQueryString } from '@woocommerce/navigation';
@@ -47,6 +47,7 @@ import { getNewPath, updateQueryString } from '@woocommerce/navigation';
 /**
  * Internal dependencies
  */
+import ForwardDateRangeFilterPicker from '../../components/forward-date-range-filter-picker';
 import {
 	DEFAULT_STATUS,
 	REPORT_SLUG,
@@ -292,33 +293,35 @@ const ValidationNotice = ( { validationResult } ) => {
 	);
 };
 
-const UpcomingRenewalsFilters = ( { defaultDateRange, path, query } ) => {
-	const { period, compare, before, after } = getDateParamsFromQuery(
-		query,
-		defaultDateRange
-	);
-	const currentDates = getCurrentDates( query, defaultDateRange );
+const UpcomingRenewalsFilters = ( { path, query } ) => {
 	const currency = useContext( CurrencyContext );
 
 	return (
-		<div className="woocommerce-analytics-report-header">
-			<ReportFilters
-				query={ query }
-				currency={ currency?.getCurrencyConfig?.() }
-				path={ path }
-				filters={ filters }
-				advancedFilters={ advancedFilters }
-				showDatePicker
-				dateQuery={ {
-					period,
-					compare,
-					before,
-					after,
-					primaryDate: currentDates.primary,
-					secondaryDate: currentDates.secondary,
-				} }
-				isoDateFormat={ isoDateFormat }
-			/>
+		<div className="woocommerce-analytics-report-header woocommerce-filters">
+			<div className="woocommerce-filters__basic-filters">
+				<ForwardDateRangeFilterPicker path={ path } query={ query } />
+				{ filters.map( ( config ) =>
+					config.showFilters( query ) ? (
+						<FilterPicker
+							key={ config.param }
+							config={ config }
+							advancedFilters={ advancedFilters }
+							query={ query }
+							path={ path }
+						/>
+					) : null
+				) }
+			</div>
+			{ query.filter === 'advanced' && (
+				<div className="woocommerce-filters__advanced-filters">
+					<AdvancedFilters
+						currency={ currency?.getCurrencyConfig?.() || {} }
+						config={ advancedFilters }
+						path={ path }
+						query={ query }
+					/>
+				</div>
+			) }
 		</div>
 	);
 };
@@ -345,7 +348,7 @@ const UpcomingRenewalsSummary = ( {
 		return (
 			<Notice status="error" isDismissible={ false }>
 				{ __(
-					'The upcoming renewals summary could not be loaded.',
+					'The upcoming renewal products summary could not be loaded.',
 					'additional-subscriptions-analytics'
 				) }
 			</Notice>
@@ -430,7 +433,7 @@ const UpcomingRenewalsChart = ( {
 		return (
 			<Notice status="error" isDismissible={ false }>
 				{ __(
-					'The upcoming renewals chart could not be loaded.',
+					'The upcoming renewal products chart could not be loaded.',
 					'additional-subscriptions-analytics'
 				) }
 			</Notice>
@@ -611,7 +614,7 @@ const UpcomingRenewalsReport = ( {
 			createNotice(
 				'error',
 				__(
-					'There was a problem validating the upcoming renewals data. Please try again.',
+					'There was a problem validating the upcoming renewal products data. Please try again.',
 					'additional-subscriptions-analytics'
 				)
 			);
@@ -648,7 +651,7 @@ const UpcomingRenewalsReport = ( {
 			createNotice(
 				'error',
 				__(
-					'There was a problem exporting the upcoming renewals report. Please try again.',
+					'There was a problem exporting the upcoming renewal products report. Please try again.',
 					'additional-subscriptions-analytics'
 				)
 			);
@@ -661,7 +664,7 @@ const UpcomingRenewalsReport = ( {
 		return (
 			<Notice status="error" isDismissible={ false }>
 				{ __(
-					'The upcoming renewals report could not be loaded.',
+					'The upcoming renewal products report could not be loaded.',
 					'additional-subscriptions-analytics'
 				) }
 			</Notice>
@@ -672,11 +675,7 @@ const UpcomingRenewalsReport = ( {
 		<div className="asa-upcoming-renewals">
 			<SyncStatusNotice />
 			<ValidationNotice validationResult={ validationResult } />
-			<UpcomingRenewalsFilters
-				defaultDateRange={ defaultDateRange }
-				path={ path }
-				query={ query }
-			/>
+			<UpcomingRenewalsFilters path={ path } query={ query } />
 			<UpcomingRenewalsSummary
 				defaultDateRange={ defaultDateRange }
 				path={ path }
@@ -702,7 +701,7 @@ const UpcomingRenewalsReport = ( {
 				isLoading={ tableData.isRequesting }
 				onQueryChange={ onQueryChange }
 				emptyMessage={ __(
-					'No upcoming renewals found for this window.',
+					'No upcoming renewal products found for this window.',
 					'additional-subscriptions-analytics'
 				) }
 				actions={ [

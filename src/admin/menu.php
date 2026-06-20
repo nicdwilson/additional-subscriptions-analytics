@@ -86,7 +86,7 @@ final class Menu {
 
 		$report_pages[] = array(
 			'id'         => self::REPORT_ID,
-			'title'      => __( 'Upcoming renewals', 'additional-subscriptions-analytics' ),
+			'title'      => __( 'Upcoming renewal products', 'additional-subscriptions-analytics' ),
 			'parent'     => 'woocommerce-analytics',
 			'path'       => self::REPORT_PATH,
 			'capability' => 'manage_woocommerce',

@@ -2,9 +2,9 @@
 
 Additional Subscriptions Analytics adds native WooCommerce Analytics reports
 backed by subscription analytics lookup tables. The first report, **Upcoming
-renewals**, shows future subscription renewals grouped by product, variation, and
-currency so merchants can prepare operational pick/pack counts before renewal
-orders are charged.
+renewal products**, shows future subscription renewals grouped by product,
+variation, and currency so merchants can prepare operational pick/pack counts
+before renewal orders are charged.
 
 This is an admin-only WooCommerce Subscriptions extension. It does not change the
 storefront, cart, checkout, My Account, payment processing, or subscription

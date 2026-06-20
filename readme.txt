@@ -15,9 +15,10 @@ Native WooCommerce Analytics reports backed by subscription analytics lookup tab
 Additional Subscriptions Analytics adds native WooCommerce Analytics reports
 backed by subscription analytics lookup tables.
 
-The first report, Upcoming renewals, shows future WooCommerce Subscriptions
-renewals grouped by product, variation, and currency. Merchants can use it to
-prepare operational product counts before renewal orders are charged.
+The first report, Upcoming renewal products, shows future WooCommerce
+Subscriptions renewals grouped by product, variation, and currency. Merchants
+can use it to prepare operational product counts before renewal orders are
+charged.
 
 The plugin is admin-only. It does not change the storefront, cart, checkout, My
 Account, payment processing, or subscription editing flows.
@@ -89,6 +90,6 @@ non-destructive initial backfill. No manual migration steps are required.
 * Added plugin-owned subscription analytics lookup tables with versioned schema lifecycle.
 * Added Action Scheduler backfill, regeneration, stale repair, and orphan cleanup tools.
 * Added event-driven subscription and subscription line-item sync.
-* Added Upcoming renewals report under WooCommerce > Analytics.
+* Added Upcoming renewal products report under WooCommerce > Analytics.
 * Added CSV export, sync status notices, and data validation diagnostics.
 * Added WP-CLI reconciliation command for source-vs-lookup validation.

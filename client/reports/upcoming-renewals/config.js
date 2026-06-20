@@ -9,46 +9,21 @@ import { __, _x } from '@wordpress/i18n';
 import { getIdsFromQuery } from '@woocommerce/navigation';
 import { NAMESPACE } from '@woocommerce/data';
 
+/**
+ * Internal dependencies
+ */
+import {
+	FUTURE_PERIOD_QUERY_PARAM,
+	getDefaultForwardDateRange,
+	getForwardDateQuery,
+} from '../../components/forward-date-range-filter-picker';
+
 export const REPORT_SLUG = 'upcoming-renewals';
 export const REPORT_TITLE = __(
-	'Upcoming renewals',
+	'Upcoming renewal products',
 	'additional-subscriptions-analytics'
 );
 export const DEFAULT_STATUS = 'active';
-
-const padDatePart = ( value ) => String( value ).padStart( 2, '0' );
-
-const toIsoDate = ( date ) =>
-	[
-		date.getFullYear(),
-		padDatePart( date.getMonth() + 1 ),
-		padDatePart( date.getDate() ),
-	].join( '-' );
-
-const startOfToday = () => {
-	const date = new Date();
-	date.setHours( 0, 0, 0, 0 );
-
-	return date;
-};
-
-const addDays = ( date, days ) => {
-	const nextDate = new Date( date.getTime() );
-	nextDate.setDate( nextDate.getDate() + days );
-
-	return nextDate;
-};
-
-const getDefaultDateQuery = () => {
-	const today = startOfToday();
-
-	return {
-		period: 'custom',
-		compare: 'previous_period',
-		after: toIsoDate( today ),
-		before: toIsoDate( addDays( today, 29 ) ),
-	};
-};
 
 const getRequestByIdString =
 	( path, handleData ) =>
@@ -88,11 +63,10 @@ const getVariationLabels = getRequestByIdString(
 	} )
 );
 
-export const getDefaultDateRange = () =>
-	new URLSearchParams( getDefaultDateQuery() ).toString();
+export const getDefaultDateRange = () => getDefaultForwardDateRange();
 
 export const getDefaultQuery = () => ( {
-	...getDefaultDateQuery(),
+	...getForwardDateQuery(),
 	orderby: 'product_name',
 	order: 'asc',
 	paged: 1,
@@ -139,6 +113,7 @@ export const filters = applyFilters(
 				'chart',
 				'chartType',
 				'interval',
+				FUTURE_PERIOD_QUERY_PARAM,
 				'orderby',
 				'order',
 				'paged',
@@ -149,7 +124,7 @@ export const filters = applyFilters(
 			filters: [
 				{
 					label: __(
-						'All upcoming renewals',
+						'All upcoming renewal products',
 						'additional-subscriptions-analytics'
 					),
 					value: 'all',
@@ -167,8 +142,8 @@ export const advancedFilters = applyFilters(
 	'additional_subscriptions_analytics_upcoming_renewals_report_advanced_filters',
 	{
 		title: _x(
-			'Upcoming renewals match <select/> filters',
-			'A sentence describing filters for upcoming renewals.',
+			'Upcoming renewal products match <select/> filters',
+			'A sentence describing filters for upcoming renewal products.',
 			'additional-subscriptions-analytics'
 		),
 		filters: {

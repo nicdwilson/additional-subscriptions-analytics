@@ -57,13 +57,13 @@ test.beforeAll( () => {
 	runWpCli( [ 'eval-file', 'tests/E2E/fixtures/seed-phase8.php' ] );
 } );
 
-test( 'merchant can use the upcoming renewals report', async ( { page } ) => {
+test( 'merchant can use the upcoming renewal products report', async ( { page } ) => {
 	await page.goto(
 		'/wp-admin/admin.php?page=wc-admin&path=%2Fanalytics%2Fupcoming-renewals'
 	);
 
 	await expect(
-		page.getByRole( 'heading', { name: 'Upcoming renewals' } )
+		page.getByRole( 'heading', { name: 'Upcoming renewal products' } )
 	).toBeVisible( { timeout: 30000 } );
 	await expect(
 		page.getByText( 'Subscription analytics data is ready.' )
@@ -71,17 +71,22 @@ test( 'merchant can use the upcoming renewals report', async ( { page } ) => {
 	await expect( page.getByText( 'Date range' ) ).toBeVisible();
 	await expect( page.getByText( 'Show:' ) ).toBeVisible();
 	await expect(
-		page.getByRole( 'button', { name: 'All upcoming renewals' } )
+		page.getByRole( 'button', { name: /Next 30 days/ } )
+	).toBeVisible();
+	await expect(
+		page.getByRole( 'button', { name: 'All upcoming renewal products' } )
 	).toBeVisible();
 	await expect( page.getByText( 'Renewals' ).first() ).toBeVisible();
 	await expect( page.getByText( 'Phase 8 Coffee' ) ).toBeVisible();
 	await expect( page.getByText( 'Phase 8 Cocoa' ) ).toBeVisible();
 
 	await page
-		.getByRole( 'button', { name: 'All upcoming renewals' } )
+		.getByRole( 'button', { name: 'All upcoming renewal products' } )
 		.click();
 	await page.getByRole( 'button', { name: 'Advanced filters' } ).click();
-	await expect( page.getByText( 'Upcoming renewals match' ) ).toBeVisible();
+	await expect(
+		page.getByText( 'Upcoming renewal products match' )
+	).toBeVisible();
 	await expect(
 		page.getByRole( 'button', { name: 'Add a filter' } )
 	).toBeVisible();
@@ -94,7 +99,9 @@ test( 'merchant can use the upcoming renewals report', async ( { page } ) => {
 	await page.getByRole( 'button', { name: 'Download CSV' } ).click();
 	const download = await downloadPromise;
 
-	expect( download.suggestedFilename() ).toContain( 'Upcoming renewals' );
+	expect( download.suggestedFilename() ).toContain(
+		'Upcoming renewal products'
+	);
 } );
 
 test( 'merchant sees sync status notices on the report', async ( { page } ) => {
