@@ -9,6 +9,7 @@
 namespace AdditionalSubscriptionsAnalytics\Diagnostics;
 
 use AdditionalSubscriptionsAnalytics\Data\DateWindow;
+use AdditionalSubscriptionsAnalytics\Data\RenewalOccurrenceCalculator;
 use AdditionalSubscriptionsAnalytics\Data\UpcomingRenewalsQuery;
 use AdditionalSubscriptionsAnalytics\Sync\ProductLookupRowBuilder;
 use AdditionalSubscriptionsAnalytics\Sync\SubscriptionRowBuilder;
@@ -80,28 +81,39 @@ final class UpcomingRenewalsReconciler {
 	private DateWindow $date_window;
 
 	/**
+	 * Renewal occurrence calculator.
+	 *
+	 * @var RenewalOccurrenceCalculator
+	 */
+	private RenewalOccurrenceCalculator $renewal_occurrences;
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 0.1.0
+	 * @since 0.9.4 Added renewal occurrence calculator dependency.
 	 *
-	 * @param object|null     $lookup_query               Optional lookup query.
-	 * @param object|null     $source                     Optional source subscription accessor.
-	 * @param object|null     $subscription_row_builder   Optional stats row builder.
-	 * @param object|null     $product_lookup_row_builder Optional product lookup row builder.
-	 * @param DateWindow|null $date_window                Optional date helper.
+	 * @param object|null                      $lookup_query               Optional lookup query.
+	 * @param object|null                      $source                     Optional source subscription accessor.
+	 * @param object|null                      $subscription_row_builder   Optional stats row builder.
+	 * @param object|null                      $product_lookup_row_builder Optional product lookup row builder.
+	 * @param DateWindow|null                  $date_window                Optional date helper.
+	 * @param RenewalOccurrenceCalculator|null $renewal_occurrences Optional renewal occurrence calculator.
 	 */
 	public function __construct(
 		?object $lookup_query = null,
 		?object $source = null,
 		?object $subscription_row_builder = null,
 		?object $product_lookup_row_builder = null,
-		?DateWindow $date_window = null
+		?DateWindow $date_window = null,
+		?RenewalOccurrenceCalculator $renewal_occurrences = null
 	) {
 		$this->lookup_query               = $lookup_query ?? new UpcomingRenewalsQuery();
 		$this->source                     = $source ?? new SubscriptionSource();
 		$this->subscription_row_builder   = $subscription_row_builder ?? new SubscriptionRowBuilder();
 		$this->product_lookup_row_builder = $product_lookup_row_builder ?? new ProductLookupRowBuilder();
 		$this->date_window                = $date_window ?? new DateWindow();
+		$this->renewal_occurrences        = $renewal_occurrences ?? new RenewalOccurrenceCalculator();
 	}
 
 	/**
@@ -276,7 +288,17 @@ final class UpcomingRenewalsReconciler {
 
 				$stats_row = $this->subscription_row_builder->build( $subscription );
 
-				if ( ! $this->source_row_matches_window( $stats_row, $query_args ) ) {
+				if ( ! $this->source_row_matches_status( $stats_row, $query_args ) ) {
+					continue;
+				}
+
+				$occurrences = $this->renewal_occurrences->get_occurrences(
+					$stats_row,
+					$query_args['after_gmt'],
+					$query_args['before_gmt']
+				);
+
+				if ( array() === $occurrences ) {
 					continue;
 				}
 
@@ -290,7 +312,7 @@ final class UpcomingRenewalsReconciler {
 				$matched_subscription_ids[ $matched_subscription_id ] = true;
 
 				foreach ( $product_rows as $product_row ) {
-					$this->add_source_product_row( $rows, $all_subscription_ids, $stats_row, $product_row );
+					$this->add_source_product_row( $rows, $all_subscription_ids, $stats_row, $product_row, $occurrences );
 				}
 			}
 
@@ -327,6 +349,7 @@ final class UpcomingRenewalsReconciler {
 	 * @param array<int, bool>                    $all_subscription_ids Distinct matching subscription IDs.
 	 * @param array<string, int|string|null>      $stats_row            Source stats row.
 	 * @param array<string, int|string|null>      $product_row          Source product row.
+	 * @param array<int, string>                  $occurrences          Renewal occurrence dates.
 	 *
 	 * @return void
 	 */
@@ -334,23 +357,29 @@ final class UpcomingRenewalsReconciler {
 		array &$rows,
 		array &$all_subscription_ids,
 		array $stats_row,
-		array $product_row
+		array $product_row,
+		array $occurrences
 	): void {
-		$subscription_id = \max( 0, (int) ( $stats_row['subscription_id'] ?? 0 ) );
-		$row             = $this->normalize_aggregate_row(
+		$subscription_id  = \max( 0, (int) ( $stats_row['subscription_id'] ?? 0 ) );
+		$occurrence_count = \count( $occurrences );
+		$row              = $this->normalize_aggregate_row(
 			array(
 				'product_id'                  => $product_row['product_id'] ?? 0,
 				'variation_id'                => $product_row['variation_id'] ?? 0,
 				'product_name'                => $product_row['product_name'] ?? '',
 				'currency'                    => $stats_row['currency'] ?? '',
-				'total_quantity'              => $product_row['product_qty'] ?? '0',
+				'total_quantity'              => $this->format_decimal(
+					(float) ( $product_row['product_qty'] ?? 0 ) * $occurrence_count
+				),
 				'subscriptions_count'         => 1,
-				'recurring_total'             => $product_row['line_total'] ?? '0',
-				'first_next_payment_date_gmt' => $stats_row['next_payment_date_gmt'] ?? '',
-				'last_next_payment_date_gmt'  => $stats_row['next_payment_date_gmt'] ?? '',
+				'recurring_total'             => $this->format_decimal(
+					(float) ( $product_row['line_total'] ?? 0 ) * $occurrence_count
+				),
+				'first_next_payment_date_gmt' => $occurrences[0] ?? '',
+				'last_next_payment_date_gmt'  => $occurrences[ $occurrence_count - 1 ] ?? '',
 			)
 		);
-		$key             = $row['key'];
+		$key              = $row['key'];
 
 		if ( ! isset( $rows[ $key ] ) ) {
 			$row['subscription_ids'] = array();
@@ -450,18 +479,18 @@ final class UpcomingRenewalsReconciler {
 	}
 
 	/**
-	 * Determine whether a source stats row belongs in the diagnostic window.
+	 * Determine whether a source stats row matches the diagnostic status filter.
 	 *
 	 * @since 0.1.0
+	 * @since 0.9.4 Date-window matching moved to renewal occurrence expansion.
 	 *
 	 * @param array<string, int|string|null> $stats_row  Source stats row.
 	 * @param array<string, mixed>           $query_args Normalized arguments.
 	 *
 	 * @return bool True when the row matches.
 	 */
-	private function source_row_matches_window( array $stats_row, array $query_args ): bool {
-		$status           = (string) ( $stats_row['status'] ?? '' );
-		$next_payment_gmt = (string) ( $stats_row['next_payment_date_gmt'] ?? '' );
+	private function source_row_matches_status( array $stats_row, array $query_args ): bool {
+		$status = (string) ( $stats_row['status'] ?? '' );
 
 		if (
 			array() !== $query_args['statuses']
@@ -470,9 +499,7 @@ final class UpcomingRenewalsReconciler {
 			return false;
 		}
 
-		return '' !== $next_payment_gmt
-			&& $next_payment_gmt >= $query_args['after_gmt']
-			&& $next_payment_gmt < $query_args['before_gmt'];
+		return true;
 	}
 
 	/**

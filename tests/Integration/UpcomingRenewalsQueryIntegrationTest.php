@@ -119,6 +119,61 @@ final class UpcomingRenewalsQueryIntegrationTest extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test monthly subscriptions are counted for each renewal occurrence inside a longer report window.
+	 *
+	 * @return void
+	 */
+	public function test_query_counts_recurring_renewal_occurrences_inside_window(): void {
+		$this->seed_subscription( 1051, 'active', '2026-07-01 00:00:00', 15, 0, 'Monthly Coffee', '2', '20' );
+		$this->seed_subscription(
+			1052,
+			'active',
+			'2026-07-01 00:00:00',
+			15,
+			0,
+			'Monthly Coffee',
+			'1',
+			'10',
+			'month',
+			1,
+			'2026-08-15 00:00:00'
+		);
+
+		$results = $this->get_query()->get_data(
+			array(
+				'after'    => '2026-07-01',
+				'before'   => '2026-09-30',
+				'per_page' => 10,
+			)
+		);
+
+		$this->assertSame( 1, $results['total'] );
+		$this->assertSame( '8.00000000', $results['data'][0]['total_quantity'] );
+		$this->assertSame( 2, $results['data'][0]['subscriptions_count'] );
+		$this->assertSame( '80.00000000', $results['data'][0]['recurring_total'] );
+		$this->assertSame( '2026-07-01 00:00:00', $results['data'][0]['first_next_payment_date_gmt'] );
+		$this->assertSame( '2026-09-01 00:00:00', $results['data'][0]['last_next_payment_date_gmt'] );
+		$this->assertSame( '8.00000000', $results['totals']['total_quantity'] );
+		$this->assertSame( 2, $results['totals']['subscriptions_count'] );
+		$this->assertSame( '80.00000000', $results['totals']['recurring_total'] );
+
+		$stats = $this->get_query()->get_stats_data(
+			array(
+				'after'    => '2026-07-01',
+				'before'   => '2026-09-30',
+				'interval' => 'month',
+			)
+		);
+
+		$this->assertSame( 5, $stats['totals']['renewals_count'] );
+		$this->assertSame( '8.00000000', $stats['totals']['renewal_quantity'] );
+		$this->assertSame( '80.00000000', $stats['totals']['recurring_total'] );
+		$this->assertSame( 2, $stats['intervals'][0]['subtotals']['renewals_count'] );
+		$this->assertSame( 2, $stats['intervals'][1]['subtotals']['renewals_count'] );
+		$this->assertSame( 1, $stats['intervals'][2]['subtotals']['renewals_count'] );
+	}
+
+	/**
 	 * Test active subscriptions are selected by default.
 	 *
 	 * @return void
@@ -358,6 +413,9 @@ final class UpcomingRenewalsQueryIntegrationTest extends \WP_UnitTestCase {
 	 * @param string $product_name          Product name.
 	 * @param string $quantity              Product quantity.
 	 * @param string $line_total            Line total.
+	 * @param string $billing_period        Billing period.
+	 * @param int    $billing_interval      Billing interval.
+	 * @param string|null $end_date_gmt     End date in GMT.
 	 *
 	 * @return void
 	 */
@@ -369,10 +427,21 @@ final class UpcomingRenewalsQueryIntegrationTest extends \WP_UnitTestCase {
 		int $variation_id,
 		string $product_name,
 		string $quantity,
-		string $line_total
+		string $line_total,
+		string $billing_period = 'month',
+		int $billing_interval = 1,
+		?string $end_date_gmt = null
 	): void {
 		$this->repository->upsert_subscription_stats(
-			$this->get_stats_row( $subscription_id, $status, $next_payment_date_gmt, $line_total )
+			$this->get_stats_row(
+				$subscription_id,
+				$status,
+				$next_payment_date_gmt,
+				$line_total,
+				$billing_period,
+				$billing_interval,
+				$end_date_gmt
+			)
 		);
 		$this->repository->replace_product_lookup_rows(
 			$subscription_id,
@@ -396,6 +465,9 @@ final class UpcomingRenewalsQueryIntegrationTest extends \WP_UnitTestCase {
 	 * @param string $status                Subscription status.
 	 * @param string $next_payment_date_gmt Next payment date in GMT.
 	 * @param string $recurring_total       Recurring total.
+	 * @param string $billing_period        Billing period.
+	 * @param int    $billing_interval      Billing interval.
+	 * @param string|null $end_date_gmt     End date in GMT.
 	 *
 	 * @return array<string, int|string|null>
 	 */
@@ -403,7 +475,10 @@ final class UpcomingRenewalsQueryIntegrationTest extends \WP_UnitTestCase {
 		int $subscription_id,
 		string $status,
 		string $next_payment_date_gmt,
-		string $recurring_total
+		string $recurring_total,
+		string $billing_period = 'month',
+		int $billing_interval = 1,
+		?string $end_date_gmt = null
 	): array {
 		return array(
 			'subscription_id'          => $subscription_id,
@@ -416,9 +491,9 @@ final class UpcomingRenewalsQueryIntegrationTest extends \WP_UnitTestCase {
 			'trial_end_date_gmt'       => null,
 			'last_payment_date_gmt'    => null,
 			'next_payment_date_gmt'    => $next_payment_date_gmt,
-			'end_date_gmt'             => null,
-			'billing_period'           => 'month',
-			'billing_interval'         => 1,
+			'end_date_gmt'             => $end_date_gmt,
+			'billing_period'           => $billing_period,
+			'billing_interval'         => $billing_interval,
 			'recurring_total'          => $recurring_total,
 			'recurring_tax_total'      => '0.00000000',
 			'recurring_shipping_total' => '0.00000000',

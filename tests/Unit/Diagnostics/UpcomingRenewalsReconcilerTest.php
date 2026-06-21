@@ -77,6 +77,39 @@ final class UpcomingRenewalsReconcilerTest extends TestCase {
 	}
 
 	/**
+	 * Test source reconciliation expands recurring renewals inside the diagnostic window.
+	 *
+	 * @return void
+	 */
+	public function test_reconciles_recurring_source_renewal_occurrences(): void {
+		$reconciler = $this->get_reconciler(
+			array(
+				$this->get_lookup_row(
+					10,
+					'6.00000000',
+					1,
+					'60.00000000',
+					'2026-07-01 00:00:00',
+					'2026-09-01 00:00:00'
+				),
+			),
+			array(
+				new ReconcilerTestSubscription( 506, 'active', '2026-07-01 00:00:00', 10, 0, 2, '20' ),
+			)
+		);
+
+		$result = $reconciler->reconcile(
+			array(
+				'after'  => '2026-07-01',
+				'before' => '2026-09-30',
+			)
+		);
+
+		$this->assertSame( 'matched', $result['status'] );
+		$this->assertSame( 1, $result['summary']['sourceSubscriptionsMatched'] );
+	}
+
+	/**
 	 * Test source reconciliation applies the selected date window and status filter.
 	 *
 	 * @return void
@@ -131,6 +164,8 @@ final class UpcomingRenewalsReconcilerTest extends TestCase {
 	 * @param string $total_quantity      Total quantity.
 	 * @param int    $subscriptions_count Subscription count.
 	 * @param string $recurring_total     Recurring total.
+	 * @param string $first_renewal_gmt   First renewal date in GMT.
+	 * @param string $last_renewal_gmt    Last renewal date in GMT.
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -138,7 +173,9 @@ final class UpcomingRenewalsReconcilerTest extends TestCase {
 		int $product_id,
 		string $total_quantity,
 		int $subscriptions_count,
-		string $recurring_total
+		string $recurring_total,
+		string $first_renewal_gmt = '2026-07-04 00:00:00',
+		string $last_renewal_gmt = '2026-07-04 00:00:00'
 	): array {
 		return array(
 			'product_id'                  => $product_id,
@@ -148,8 +185,8 @@ final class UpcomingRenewalsReconcilerTest extends TestCase {
 			'total_quantity'              => $total_quantity,
 			'subscriptions_count'         => $subscriptions_count,
 			'recurring_total'             => $recurring_total,
-			'first_next_payment_date_gmt' => '2026-07-04 00:00:00',
-			'last_next_payment_date_gmt'  => '2026-07-04 00:00:00',
+			'first_next_payment_date_gmt' => $first_renewal_gmt,
+			'last_next_payment_date_gmt'  => $last_renewal_gmt,
 		);
 	}
 }

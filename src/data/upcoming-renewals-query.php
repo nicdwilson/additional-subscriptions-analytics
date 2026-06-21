@@ -46,16 +46,30 @@ final class UpcomingRenewalsQuery {
 	private DateWindow $date_window;
 
 	/**
+	 * Renewal occurrence calculator.
+	 *
+	 * @var RenewalOccurrenceCalculator
+	 */
+	private RenewalOccurrenceCalculator $renewal_occurrences;
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 0.1.0
+	 * @since 0.9.4 Added renewal occurrence calculator dependency.
 	 *
-	 * @param TableNames|null $table_names Optional table name helper.
-	 * @param DateWindow|null $date_window Optional date window helper.
+	 * @param TableNames|null                  $table_names         Optional table name helper.
+	 * @param DateWindow|null                  $date_window         Optional date window helper.
+	 * @param RenewalOccurrenceCalculator|null $renewal_occurrences Optional renewal occurrence calculator.
 	 */
-	public function __construct( ?TableNames $table_names = null, ?DateWindow $date_window = null ) {
-		$this->table_names = $table_names ?? new TableNames();
-		$this->date_window = $date_window ?? new DateWindow();
+	public function __construct(
+		?TableNames $table_names = null,
+		?DateWindow $date_window = null,
+		?RenewalOccurrenceCalculator $renewal_occurrences = null
+	) {
+		$this->table_names         = $table_names ?? new TableNames();
+		$this->date_window         = $date_window ?? new DateWindow();
+		$this->renewal_occurrences = $renewal_occurrences ?? new RenewalOccurrenceCalculator();
 	}
 
 	/**
@@ -68,12 +82,14 @@ final class UpcomingRenewalsQuery {
 	 * @return array{data: array<int, array<string, int|string>>, totals: array<string, int|string>, total: int, pages: int, page_no: int}
 	 */
 	public function get_data( array $args ): array {
-		$query_args = $this->normalize_args( $args );
-		$total      = $this->get_total_count( $query_args );
+		$query_args     = $this->normalize_args( $args );
+		$aggregate_rows = $this->get_aggregate_rows( $query_args );
+		$public_rows    = $this->get_public_aggregate_rows( $aggregate_rows );
+		$total          = \count( $public_rows );
 
 		return array(
-			'data'    => $this->get_rows( $query_args ),
-			'totals'  => $this->get_totals( $query_args ),
+			'data'    => \array_slice( $public_rows, $query_args['offset'], $query_args['per_page'] ),
+			'totals'  => $this->get_totals_from_aggregate_rows( $aggregate_rows ),
 			'total'   => $total,
 			'pages'   => 0 === $total ? 0 : (int) \ceil( $total / $query_args['per_page'] ),
 			'page_no' => $query_args['page'],
@@ -96,30 +112,41 @@ final class UpcomingRenewalsQuery {
 		$totals     = $this->get_empty_stats_totals();
 
 		foreach ( $this->get_subscription_stats_rows( $query_args ) as $row ) {
-			$bucket_key = $this->get_bucket_key_for_row( $row, $buckets );
+			$occurrences = $this->renewal_occurrences->get_occurrences(
+				$row,
+				$query_args['after_gmt'],
+				$query_args['before_gmt']
+			);
 
-			if ( null === $bucket_key ) {
-				continue;
+			foreach ( $occurrences as $occurrence ) {
+				$bucket_key = $this->get_bucket_key_for_row(
+					array_merge( $row, array( 'next_payment_date_gmt' => $occurrence ) ),
+					$buckets
+				);
+
+				if ( null === $bucket_key ) {
+					continue;
+				}
+
+				$buckets[ $bucket_key ]['subtotals']['renewals_count']  += 1;
+				$buckets[ $bucket_key ]['subtotals']['renewal_quantity'] = $this->add_decimal_strings(
+					$buckets[ $bucket_key ]['subtotals']['renewal_quantity'],
+					$row['renewal_quantity']
+				);
+				$buckets[ $bucket_key ]['subtotals']['recurring_total']  = $this->add_decimal_strings(
+					$buckets[ $bucket_key ]['subtotals']['recurring_total'],
+					$row['recurring_total']
+				);
+				$totals['renewals_count']                               += 1;
+				$totals['renewal_quantity']                              = $this->add_decimal_strings(
+					$totals['renewal_quantity'],
+					$row['renewal_quantity']
+				);
+				$totals['recurring_total']                               = $this->add_decimal_strings(
+					$totals['recurring_total'],
+					$row['recurring_total']
+				);
 			}
-
-			$buckets[ $bucket_key ]['subtotals']['renewals_count']  += 1;
-			$buckets[ $bucket_key ]['subtotals']['renewal_quantity'] = $this->add_decimal_strings(
-				$buckets[ $bucket_key ]['subtotals']['renewal_quantity'],
-				$row['renewal_quantity']
-			);
-			$buckets[ $bucket_key ]['subtotals']['recurring_total']  = $this->add_decimal_strings(
-				$buckets[ $bucket_key ]['subtotals']['recurring_total'],
-				$row['recurring_total']
-			);
-			$totals['renewals_count']                               += 1;
-			$totals['renewal_quantity']                              = $this->add_decimal_strings(
-				$totals['renewal_quantity'],
-				$row['renewal_quantity']
-			);
-			$totals['recurring_total']                               = $this->add_decimal_strings(
-				$totals['recurring_total'],
-				$row['recurring_total']
-			);
 		}
 
 		$intervals = array_values(
@@ -197,91 +224,266 @@ final class UpcomingRenewalsQuery {
 	}
 
 	/**
-	 * Query aggregate rows.
+	 * Build aggregate report rows from candidate subscription product rows.
 	 *
-	 * @since 0.1.0
+	 * @since 0.9.4
 	 *
 	 * @param array<string, mixed> $query_args Normalized query arguments.
 	 *
-	 * @return array<int, array<string, int|string>>
+	 * @return array<int, array<string, mixed>>
 	 */
-	private function get_rows( array $query_args ): array {
+	private function get_aggregate_rows( array $query_args ): array {
+		$rows = array();
+
+		foreach ( $this->get_candidate_product_rows( $query_args ) as $candidate ) {
+			$occurrences = $this->renewal_occurrences->get_occurrences(
+				$candidate,
+				$query_args['after_gmt'],
+				$query_args['before_gmt']
+			);
+
+			if ( array() === $occurrences ) {
+				continue;
+			}
+
+			$key = $this->get_aggregate_key( $candidate );
+
+			if ( ! isset( $rows[ $key ] ) ) {
+				$rows[ $key ] = array(
+					'product_id'                  => $candidate['product_id'],
+					'variation_id'                => $candidate['variation_id'],
+					'product_name'                => $candidate['product_name'],
+					'currency'                    => $candidate['currency'],
+					'total_quantity'              => '0.00000000',
+					'subscriptions_count'         => 0,
+					'recurring_total'             => '0.00000000',
+					'first_next_payment_date_gmt' => $occurrences[0],
+					'last_next_payment_date_gmt'  => $occurrences[ \count( $occurrences ) - 1 ],
+					'subscription_ids'            => array(),
+				);
+			}
+
+			$rows[ $key ]['product_name']                = \max( $rows[ $key ]['product_name'], $candidate['product_name'] );
+			$rows[ $key ]['total_quantity']              = $this->add_decimal_strings(
+				(string) $rows[ $key ]['total_quantity'],
+				$this->multiply_decimal_string( $candidate['product_qty'], \count( $occurrences ) )
+			);
+			$rows[ $key ]['recurring_total']             = $this->add_decimal_strings(
+				(string) $rows[ $key ]['recurring_total'],
+				$this->multiply_decimal_string( $candidate['line_total'], \count( $occurrences ) )
+			);
+			$rows[ $key ]['first_next_payment_date_gmt'] = \min(
+				(string) $rows[ $key ]['first_next_payment_date_gmt'],
+				$occurrences[0]
+			);
+			$rows[ $key ]['last_next_payment_date_gmt']  = \max(
+				(string) $rows[ $key ]['last_next_payment_date_gmt'],
+				$occurrences[ \count( $occurrences ) - 1 ]
+			);
+
+			if ( 0 !== $candidate['subscription_id'] ) {
+				$rows[ $key ]['subscription_ids'][ $candidate['subscription_id'] ] = true;
+			}
+		}
+
+		foreach ( $rows as $key => $row ) {
+			$rows[ $key ]['subscriptions_count'] = \count( (array) $row['subscription_ids'] );
+		}
+
+		return $this->sort_aggregate_rows( \array_values( $rows ), $query_args );
+	}
+
+	/**
+	 * Query candidate product rows that could renew in the report window.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param array<string, mixed> $query_args Normalized query arguments.
+	 *
+	 * @return array<int, array<string, int|string|null>>
+	 */
+	private function get_candidate_product_rows( array $query_args ): array {
 		global $wpdb;
 
-		$query = $this->get_select_sql( $query_args );
-		$args  = $this->get_select_args( $query_args );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$query = 'SELECT
+				stats.subscription_id,
+				stats.next_payment_date_gmt,
+				stats.end_date_gmt,
+				stats.billing_period,
+				stats.billing_interval,
+				stats.currency,
+				product_lookup.product_id,
+				product_lookup.variation_id,
+				product_lookup.product_name,
+				product_lookup.product_qty,
+				product_lookup.line_total
+			' . $this->get_from_where_sql( $query_args ) . '
+			ORDER BY stats.next_payment_date_gmt ASC, product_lookup.product_id ASC, product_lookup.variation_id ASC';
+		$args  = $this->get_base_args( $query_args );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$sql = $wpdb->prepare( $query, ...$args );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = (array) $wpdb->get_results( $sql );
 
-		return \array_map( array( $this, 'normalize_result_row' ), $rows );
+		return \array_map( array( $this, 'normalize_candidate_product_row' ), $rows );
 	}
 
 	/**
-	 * Query the total number of aggregate groups.
+	 * Build report-wide totals from aggregate rows.
 	 *
-	 * @since 0.1.0
+	 * @since 0.9.4
 	 *
-	 * @param array<string, mixed> $query_args Normalized query arguments.
-	 *
-	 * @return int
-	 */
-	private function get_total_count( array $query_args ): int {
-		global $wpdb;
-
-		$query = 'SELECT COUNT(*)
-			FROM (
-				SELECT product_lookup.product_id, product_lookup.variation_id, stats.currency
-				' . $this->get_from_where_sql( $query_args ) . '
-				GROUP BY product_lookup.product_id, product_lookup.variation_id, stats.currency
-			) grouped';
-		$args  = $this->get_base_args( $query_args );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-		$sql = $wpdb->prepare( $query, ...$args );
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		return \max( 0, (int) $wpdb->get_var( $sql ) );
-	}
-
-	/**
-	 * Query report-wide totals.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param array<string, mixed> $query_args Normalized query arguments.
+	 * @param array<int, array<string, mixed>> $rows Aggregate rows.
 	 *
 	 * @return array<string, int|string>
 	 */
-	private function get_totals( array $query_args ): array {
-		global $wpdb;
+	private function get_totals_from_aggregate_rows( array $rows ): array {
+		$total_quantity   = '0.00000000';
+		$recurring_total  = '0.00000000';
+		$subscription_ids = array();
 
-		$query = 'SELECT
-				COALESCE(SUM(product_lookup.product_qty), 0) AS total_quantity,
-				COUNT(DISTINCT stats.subscription_id) AS subscriptions_count,
-				COALESCE(SUM(product_lookup.line_total), 0) AS recurring_total
-			' . $this->get_from_where_sql( $query_args );
-		$args  = $this->get_base_args( $query_args );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-		$sql = $wpdb->prepare( $query, ...$args );
+		foreach ( $rows as $row ) {
+			$total_quantity  = $this->add_decimal_strings( $total_quantity, (string) ( $row['total_quantity'] ?? '0' ) );
+			$recurring_total = $this->add_decimal_strings( $recurring_total, (string) ( $row['recurring_total'] ?? '0' ) );
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$row = $wpdb->get_row( $sql );
-
-		if ( ! \is_object( $row ) ) {
-			return array(
-				'total_quantity'      => '0.00000000',
-				'subscriptions_count' => 0,
-				'recurring_total'     => '0.00000000',
-			);
+			foreach ( (array) ( $row['subscription_ids'] ?? array() ) as $subscription_id => $matched ) {
+				if ( $matched ) {
+					$subscription_ids[ \max( 0, (int) $subscription_id ) ] = true;
+				}
+			}
 		}
 
 		return array(
-			'total_quantity'      => $this->format_decimal( $row->total_quantity ?? '0' ),
-			'subscriptions_count' => \max( 0, (int) ( $row->subscriptions_count ?? 0 ) ),
-			'recurring_total'     => $this->format_decimal( $row->recurring_total ?? '0' ),
+			'total_quantity'      => $this->format_decimal( $total_quantity ),
+			'subscriptions_count' => \count( $subscription_ids ),
+			'recurring_total'     => $this->format_decimal( $recurring_total ),
 		);
+	}
+
+	/**
+	 * Remove internal aggregate state before returning rows.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param array<int, array<string, mixed>> $rows Aggregate rows.
+	 *
+	 * @return array<int, array<string, int|string>>
+	 */
+	private function get_public_aggregate_rows( array $rows ): array {
+		foreach ( $rows as $index => $row ) {
+			unset( $row['subscription_ids'] );
+			$rows[ $index ] = $row;
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Normalize one candidate product row.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param mixed $row Raw database row.
+	 *
+	 * @return array<string, int|string|null>
+	 */
+	private function normalize_candidate_product_row( mixed $row ): array {
+		$row = \is_object( $row ) ? $row : (object) array();
+
+		return array(
+			'subscription_id'       => \max( 0, (int) ( $row->subscription_id ?? 0 ) ),
+			'next_payment_date_gmt' => (string) ( $row->next_payment_date_gmt ?? '' ),
+			'end_date_gmt'          => null === ( $row->end_date_gmt ?? null ) ? null : (string) $row->end_date_gmt,
+			'billing_period'        => (string) ( $row->billing_period ?? '' ),
+			'billing_interval'      => \max( 1, (int) ( $row->billing_interval ?? 1 ) ),
+			'currency'              => (string) ( $row->currency ?? '' ),
+			'product_id'            => \max( 0, (int) ( $row->product_id ?? 0 ) ),
+			'variation_id'          => \max( 0, (int) ( $row->variation_id ?? 0 ) ),
+			'product_name'          => (string) ( $row->product_name ?? '' ),
+			'product_qty'           => $this->format_decimal( $row->product_qty ?? '0' ),
+			'line_total'            => $this->format_decimal( $row->line_total ?? '0' ),
+		);
+	}
+
+	/**
+	 * Get the product/currency aggregate key for a candidate row.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param array<string, int|string|null> $row Candidate row.
+	 *
+	 * @return string Aggregate key.
+	 */
+	private function get_aggregate_key( array $row ): string {
+		return (int) $row['product_id'] . ':' . (int) $row['variation_id'] . ':' . (string) $row['currency'];
+	}
+
+	/**
+	 * Sort aggregate rows using the normalized report order.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param array<int, array<string, mixed>> $rows       Aggregate rows.
+	 * @param array<string, mixed>             $query_args Normalized query arguments.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function sort_aggregate_rows( array $rows, array $query_args ): array {
+		$orderby = $this->get_orderby_field( (string) $query_args['orderby'] );
+		$order   = (string) $query_args['order'];
+
+		\usort(
+			$rows,
+			function ( array $left, array $right ) use ( $orderby, $order ): int {
+				$comparison = $this->compare_aggregate_values( $left[ $orderby ] ?? '', $right[ $orderby ] ?? '', $orderby );
+
+				if ( 0 === $comparison ) {
+					$comparison = $this->compare_aggregate_values( $left['product_name'] ?? '', $right['product_name'] ?? '', 'product_name' );
+				}
+
+				if ( 0 === $comparison ) {
+					$comparison = $this->compare_aggregate_values( $left['product_id'] ?? 0, $right['product_id'] ?? 0, 'product_id' );
+				}
+
+				return 'DESC' === $order ? -$comparison : $comparison;
+			}
+		);
+
+		return $rows;
+	}
+
+	/**
+	 * Compare aggregate row values for sorting.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param mixed  $left  Left value.
+	 * @param mixed  $right Right value.
+	 * @param string $field Sort field.
+	 *
+	 * @return int Comparison result.
+	 */
+	private function compare_aggregate_values( mixed $left, mixed $right, string $field ): int {
+		if ( \in_array( $field, array( 'product_id', 'variation_id', 'total_quantity', 'subscriptions_count', 'recurring_total' ), true ) ) {
+			return (float) $left <=> (float) $right;
+		}
+
+		return \strnatcasecmp( (string) $left, (string) $right );
+	}
+
+	/**
+	 * Multiply a decimal string by an integer.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param string $value      Decimal value.
+	 * @param int    $multiplier Multiplier.
+	 *
+	 * @return string Product decimal.
+	 */
+	private function multiply_decimal_string( string $value, int $multiplier ): string {
+		return $this->format_decimal( (float) $value * \max( 0, $multiplier ) );
 	}
 
 	/**
@@ -291,7 +493,7 @@ final class UpcomingRenewalsQuery {
 	 *
 	 * @param array<string, mixed> $query_args Normalized query arguments.
 	 *
-	 * @return array<int, array{subscription_id: int, next_payment_date_gmt: string, renewal_quantity: string, recurring_total: string}>
+	 * @return array<int, array<string, int|string|null>>
 	 */
 	private function get_subscription_stats_rows( array $query_args ): array {
 		global $wpdb;
@@ -299,10 +501,13 @@ final class UpcomingRenewalsQuery {
 		$query = 'SELECT
 				stats.subscription_id,
 				stats.next_payment_date_gmt,
+				stats.end_date_gmt,
+				stats.billing_period,
+				stats.billing_interval,
 				COALESCE(SUM(product_lookup.product_qty), 0) AS renewal_quantity,
 				COALESCE(SUM(product_lookup.line_total), 0) AS recurring_total
 			' . $this->get_from_where_sql( $query_args ) . '
-			GROUP BY stats.subscription_id, stats.next_payment_date_gmt
+			GROUP BY stats.subscription_id, stats.next_payment_date_gmt, stats.end_date_gmt, stats.billing_period, stats.billing_interval
 			ORDER BY stats.next_payment_date_gmt ASC';
 		$args  = $this->get_base_args( $query_args );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
@@ -318,38 +523,15 @@ final class UpcomingRenewalsQuery {
 				return array(
 					'subscription_id'       => \max( 0, (int) ( $row->subscription_id ?? 0 ) ),
 					'next_payment_date_gmt' => (string) ( $row->next_payment_date_gmt ?? '' ),
+					'end_date_gmt'          => null === ( $row->end_date_gmt ?? null ) ? null : (string) $row->end_date_gmt,
+					'billing_period'        => (string) ( $row->billing_period ?? '' ),
+					'billing_interval'      => \max( 1, (int) ( $row->billing_interval ?? 1 ) ),
 					'renewal_quantity'      => $this->format_decimal( $row->renewal_quantity ?? '0' ),
 					'recurring_total'       => $this->format_decimal( $row->recurring_total ?? '0' ),
 				);
 			},
 			$rows
 		);
-	}
-
-	/**
-	 * Build the select SQL.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param array<string, mixed> $query_args Normalized query arguments.
-	 *
-	 * @return string SQL with placeholders.
-	 */
-	private function get_select_sql( array $query_args ): string {
-		return 'SELECT
-				product_lookup.product_id,
-				product_lookup.variation_id,
-				MAX(product_lookup.product_name) AS product_name,
-				stats.currency,
-				COALESCE(SUM(product_lookup.product_qty), 0) AS total_quantity,
-				COUNT(DISTINCT stats.subscription_id) AS subscriptions_count,
-				COALESCE(SUM(product_lookup.line_total), 0) AS recurring_total,
-				MIN(stats.next_payment_date_gmt) AS first_next_payment_date_gmt,
-				MAX(stats.next_payment_date_gmt) AS last_next_payment_date_gmt
-			' . $this->get_from_where_sql( $query_args ) . '
-			GROUP BY product_lookup.product_id, product_lookup.variation_id, stats.currency
-			ORDER BY ' . $this->get_orderby_sql( $query_args['orderby'] ) . ' ' . $query_args['order'] . '
-			LIMIT %d OFFSET %d';
 	}
 
 	/**
@@ -366,27 +548,8 @@ final class UpcomingRenewalsQuery {
 			INNER JOIN %i stats
 				ON stats.subscription_id = product_lookup.subscription_id
 			WHERE stats.next_payment_date_gmt IS NOT NULL
-				AND stats.next_payment_date_gmt >= %s
-				AND stats.next_payment_date_gmt < %s' . $this->get_filter_sql( $query_args );
-	}
-
-	/**
-	 * Get placeholder args for SELECT queries.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param array<string, mixed> $query_args Normalized query arguments.
-	 *
-	 * @return array<int, mixed>
-	 */
-	private function get_select_args( array $query_args ): array {
-		return \array_merge(
-			$this->get_base_args( $query_args ),
-			array(
-				$query_args['per_page'],
-				$query_args['offset'],
-			)
-		);
+				AND stats.next_payment_date_gmt < %s
+				AND (stats.end_date_gmt IS NULL OR stats.end_date_gmt > %s)' . $this->get_filter_sql( $query_args );
 	}
 
 	/**
@@ -403,8 +566,8 @@ final class UpcomingRenewalsQuery {
 			array(
 				$this->table_names->subscription_product_lookup(),
 				$this->table_names->subscriptions_stats(),
-				$query_args['after_gmt'],
 				$query_args['before_gmt'],
+				$query_args['after_gmt'],
 			),
 			$this->get_filter_args( $query_args )
 		);
@@ -783,15 +946,15 @@ final class UpcomingRenewalsQuery {
 	}
 
 	/**
-	 * Get SQL for an allowed orderby field.
+	 * Get the aggregate row field for an allowed orderby value.
 	 *
-	 * @since 0.1.0
+	 * @since 0.9.4
 	 *
 	 * @param string $orderby Orderby field.
 	 *
-	 * @return string Safe SQL expression.
+	 * @return string Aggregate row field.
 	 */
-	private function get_orderby_sql( string $orderby ): string {
+	private function get_orderby_field( string $orderby ): string {
 		return $this->get_orderby_map()[ $orderby ];
 	}
 
@@ -805,8 +968,8 @@ final class UpcomingRenewalsQuery {
 	private function get_orderby_map(): array {
 		return array(
 			'product_name'                => 'product_name',
-			'product_id'                  => 'product_lookup.product_id',
-			'variation_id'                => 'product_lookup.variation_id',
+			'product_id'                  => 'product_id',
+			'variation_id'                => 'variation_id',
 			'total_quantity'              => 'total_quantity',
 			'quantity'                    => 'total_quantity',
 			'subscriptions_count'         => 'subscriptions_count',
@@ -827,31 +990,6 @@ final class UpcomingRenewalsQuery {
 	 */
 	private function is_export_request( array $args ): bool {
 		return ! empty( $args['export'] ) || ! empty( $args['download'] ) || ! empty( $args['csv_export'] );
-	}
-
-	/**
-	 * Normalize one database result row.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param mixed $row Raw database row.
-	 *
-	 * @return array<string, int|string>
-	 */
-	private function normalize_result_row( mixed $row ): array {
-		$row = \is_object( $row ) ? $row : (object) array();
-
-		return array(
-			'product_id'                  => \max( 0, (int) ( $row->product_id ?? 0 ) ),
-			'variation_id'                => \max( 0, (int) ( $row->variation_id ?? 0 ) ),
-			'product_name'                => (string) ( $row->product_name ?? '' ),
-			'currency'                    => (string) ( $row->currency ?? '' ),
-			'total_quantity'              => $this->format_decimal( $row->total_quantity ?? '0' ),
-			'subscriptions_count'         => \max( 0, (int) ( $row->subscriptions_count ?? 0 ) ),
-			'recurring_total'             => $this->format_decimal( $row->recurring_total ?? '0' ),
-			'first_next_payment_date_gmt' => (string) ( $row->first_next_payment_date_gmt ?? '' ),
-			'last_next_payment_date_gmt'  => (string) ( $row->last_next_payment_date_gmt ?? '' ),
-		);
 	}
 
 	/**
