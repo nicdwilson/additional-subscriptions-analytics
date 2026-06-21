@@ -63,8 +63,6 @@ const getInitialQuery = ( incomingQuery = {} ) => {
 	const defaults = getDefaultQuery();
 	const forwardQuery = { ...incomingQuery };
 
-	delete forwardQuery.compare;
-
 	const normalizedDateQuery = normalizeForwardDateQuery( forwardQuery );
 	const query = {
 		...defaults,

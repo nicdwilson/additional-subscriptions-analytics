@@ -1,6 +1,6 @@
 {
 	"name": "additional-subscriptions-analytics",
-	"version": "0.9.1",
+	"version": "0.9.3",
 	"description": "Native WooCommerce Analytics reports backed by subscription analytics lookup tables.",
 	"private": true,
 	"engines": {

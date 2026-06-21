@@ -4,7 +4,7 @@ Requires at least: 6.4
 Requires PHP: 8.0
 WC requires at least: 9.3
 WC tested up to: 10.8
-Stable tag: 0.9.1
+Stable tag: 0.9.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,10 @@ include shipping, tax, fees, discounts, retries, or different statuses.
 
 == Upgrade Notice ==
 
+= 0.9.3 =
+Adds the forward-looking Upcoming renewal products date picker and fixes report
+loading with WooCommerce Analytics date query compatibility.
+
 = 0.9.1 =
 Adds Analytics Settings controls for subscription analytics backfill and
 replacement rebuilds. Activation now queues the initial non-destructive backfill.
@@ -79,6 +83,11 @@ Initial private prerelease. The plugin creates two lookup tables and performs a
 non-destructive initial backfill. No manual migration steps are required.
 
 == Changelog ==
+
+= 0.9.3 =
+* Added a forward-looking date range picker for Upcoming renewal products.
+* Removed visible comparison controls and comparison summary deltas from the forward-looking report.
+* Fixed report rendering by preserving WooCommerce Analytics date query compatibility internally.
 
 = 0.9.1 =
 * Added WooCommerce > Analytics > Settings controls for subscription analytics backfill status.

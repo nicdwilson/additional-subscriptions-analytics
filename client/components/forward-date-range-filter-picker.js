@@ -162,6 +162,7 @@ export const getForwardDateQuery = ( period = DEFAULT_FORWARD_PERIOD ) => {
 
 	return {
 		period: 'custom',
+		compare: 'previous_period',
 		[ FUTURE_PERIOD_QUERY_PARAM ]: periodConfig.value,
 		after: toIsoDate( after ),
 		before: toIsoDate( before ),
@@ -212,6 +213,7 @@ export const normalizeForwardDateQuery = ( query = {} ) => {
 
 	return {
 		period: 'custom',
+		compare: defaults.compare,
 		[ FUTURE_PERIOD_QUERY_PARAM ]:
 			futurePeriod === 'custom' ? 'custom' : matchingPreset,
 		after: afterIso,

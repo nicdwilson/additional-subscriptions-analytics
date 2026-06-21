@@ -112,6 +112,7 @@ export const filters = applyFilters(
 			label: __( 'Show', 'woocommerce' ),
 			staticParams: [
 				'period',
+				'compare',
 				'after',
 				'before',
 				'chart',
