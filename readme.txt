@@ -4,7 +4,7 @@ Requires at least: 6.4
 Requires PHP: 8.0
 WC requires at least: 9.3
 WC tested up to: 10.8
-Stable tag: 0.9.3
+Stable tag: 0.9.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,10 @@ include shipping, tax, fees, discounts, retries, or different statuses.
 
 == Upgrade Notice ==
 
+= 0.9.4 =
+Counts recurring renewal occurrences within the selected future report window,
+including billing interval and subscription end-date handling.
+
 = 0.9.3 =
 Adds the forward-looking Upcoming renewal products date picker and fixes report
 loading with WooCommerce Analytics date query compatibility.
@@ -83,6 +87,11 @@ Initial private prerelease. The plugin creates two lookup tables and performs a
 non-destructive initial backfill. No manual migration steps are required.
 
 == Changelog ==
+
+= 0.9.4 =
+* Count recurring renewal occurrences within longer future report windows.
+* Use billing period, billing interval, report end date, and subscription end date when expanding future renewals.
+* Keep reconciliation diagnostics aligned with the occurrence-aware report totals.
 
 = 0.9.3 =
 * Added a forward-looking date range picker for Upcoming renewal products.

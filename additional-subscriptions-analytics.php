@@ -3,7 +3,7 @@
  * Plugin Name:       Additional Subscriptions Analytics
  * Plugin URI:        https://github.com/woocommerce/additional-subscriptions-analytics
  * Description:       Adds native WooCommerce Analytics reports backed by subscription analytics lookup tables.
- * Version:           0.9.3
+ * Version:           0.9.4
  * Requires at least: 6.4
  * Requires PHP:      8.0
  * Author:            WooCommerce
@@ -21,7 +21,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ASA_VERSION', '0.9.3' );
+define( 'ASA_VERSION', '0.9.4' );
 define( 'ASA_MIN_PHP_VERSION', '8.0' );
 define( 'ASA_MIN_WP_VERSION', '6.4' );
 define( 'ASA_MIN_WC_VERSION', '9.3' );
