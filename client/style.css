@@ -80,8 +80,20 @@
 	line-height: 28px;
 }
 
+.asa-revenue-grouping-control {
+	min-width: 184px;
+}
+
+.asa-revenue-grouping-control .components-base-control {
+	margin-bottom: 0;
+}
+
 @media (max-width: 782px) {
 	.asa-forward-date-picker__fields {
 		grid-template-columns: 1fr;
+	}
+
+	.asa-revenue-grouping-control {
+		width: 100%;
 	}
 }

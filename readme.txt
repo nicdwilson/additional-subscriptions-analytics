@@ -4,7 +4,7 @@ Requires at least: 6.4
 Requires PHP: 8.0
 WC requires at least: 9.3
 WC tested up to: 10.8
-Stable tag: 0.9.4
+Stable tag: 0.9.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,10 +15,14 @@ Native WooCommerce Analytics reports backed by subscription analytics lookup tab
 Additional Subscriptions Analytics adds native WooCommerce Analytics reports
 backed by subscription analytics lookup tables.
 
-The first report, Upcoming renewal products, shows future WooCommerce
+The Upcoming renewal products report shows future WooCommerce
 Subscriptions renewals grouped by product, variation, and currency. Merchants
 can use it to prepare operational product counts before renewal orders are
 charged.
+
+The Upcoming renewal revenue report shows forecast recurring revenue over the
+selected future window. Its graph reports revenue by date, while its table can
+be grouped by day, week, month, or year.
 
 The plugin is admin-only. It does not change the storefront, cart, checkout, My
 Account, payment processing, or subscription editing flows.
@@ -70,6 +74,10 @@ include shipping, tax, fees, discounts, retries, or different statuses.
 
 == Upgrade Notice ==
 
+= 0.9.5 =
+Adds the Upcoming renewal revenue report with daily charting and selectable
+table grouping.
+
 = 0.9.4 =
 Counts recurring renewal occurrences within the selected future report window,
 including billing interval and subscription end-date handling.
@@ -87,6 +95,11 @@ Initial private prerelease. The plugin creates two lookup tables and performs a
 non-destructive initial backfill. No manual migration steps are required.
 
 == Changelog ==
+
+= 0.9.5 =
+* Added Upcoming renewal revenue under WooCommerce > Analytics.
+* Added recurring revenue REST endpoints, CSV export, and daily chart data.
+* Added daily, weekly, monthly, and annual grouping for the revenue report table.
 
 = 0.9.4 =
 * Count recurring renewal occurrences within longer future report windows.

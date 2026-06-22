@@ -11,7 +11,7 @@ namespace AdditionalSubscriptionsAnalytics\Admin;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the upcoming renewals report in WooCommerce Analytics.
+ * Registers subscription analytics reports in WooCommerce Analytics.
  *
  * @since 0.1.0
  */
@@ -32,11 +32,25 @@ final class Menu {
 	public const REPORT_ID = 'asa-upcoming-renewals';
 
 	/**
+	 * Revenue report menu ID.
+	 *
+	 * @since 0.9.5
+	 */
+	public const REVENUE_REPORT_ID = 'asa-upcoming-renewal-revenue';
+
+	/**
 	 * Report path inside WooCommerce Admin.
 	 *
 	 * @since 0.1.0
 	 */
 	public const REPORT_PATH = '/analytics/upcoming-renewals';
+
+	/**
+	 * Revenue report path inside WooCommerce Admin.
+	 *
+	 * @since 0.9.5
+	 */
+	public const REVENUE_REPORT_PATH = '/analytics/upcoming-renewal-revenue';
 
 	/**
 	 * Sync status helper.
@@ -78,19 +92,27 @@ final class Menu {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function register_report_menu_item( array $report_pages ): array {
-		foreach ( $report_pages as $report_page ) {
-			if ( self::REPORT_ID === ( $report_page['id'] ?? '' ) ) {
-				return $report_pages;
-			}
+		$registered_ids = \array_column( $report_pages, 'id' );
+
+		if ( ! \in_array( self::REPORT_ID, $registered_ids, true ) ) {
+			$report_pages[] = array(
+				'id'         => self::REPORT_ID,
+				'title'      => __( 'Upcoming renewal products', 'additional-subscriptions-analytics' ),
+				'parent'     => 'woocommerce-analytics',
+				'path'       => self::REPORT_PATH,
+				'capability' => 'manage_woocommerce',
+			);
 		}
 
-		$report_pages[] = array(
-			'id'         => self::REPORT_ID,
-			'title'      => __( 'Upcoming renewal products', 'additional-subscriptions-analytics' ),
-			'parent'     => 'woocommerce-analytics',
-			'path'       => self::REPORT_PATH,
-			'capability' => 'manage_woocommerce',
-		);
+		if ( ! \in_array( self::REVENUE_REPORT_ID, $registered_ids, true ) ) {
+			$report_pages[] = array(
+				'id'         => self::REVENUE_REPORT_ID,
+				'title'      => __( 'Upcoming renewal revenue', 'additional-subscriptions-analytics' ),
+				'parent'     => 'woocommerce-analytics',
+				'path'       => self::REVENUE_REPORT_PATH,
+				'capability' => 'manage_woocommerce',
+			);
+		}
 
 		return $report_pages;
 	}
@@ -148,8 +170,9 @@ final class Menu {
 			self::SCRIPT_HANDLE,
 			'asaUpcomingRenewals',
 			array(
-				'reportUrl'  => \admin_url( 'admin.php?page=wc-admin&path=/analytics/upcoming-renewals' ),
-				'syncStatus' => $this->sync_status->get_status(),
+				'reportUrl'        => \admin_url( 'admin.php?page=wc-admin&path=/analytics/upcoming-renewals' ),
+				'revenueReportUrl' => \admin_url( 'admin.php?page=wc-admin&path=/analytics/upcoming-renewal-revenue' ),
+				'syncStatus'       => $this->sync_status->get_status(),
 			)
 		);
 	}

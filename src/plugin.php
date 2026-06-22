@@ -11,6 +11,9 @@ namespace AdditionalSubscriptionsAnalytics;
 use AdditionalSubscriptionsAnalytics\Admin\Menu;
 use AdditionalSubscriptionsAnalytics\Admin\SyncStatus;
 use AdditionalSubscriptionsAnalytics\Analytics\BackfillController;
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewalRevenue\Controller as UpcomingRenewalRevenueController;
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewalRevenue\DataStore as UpcomingRenewalRevenueDataStore;
+use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewalRevenue\StatsController as UpcomingRenewalRevenueStatsController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\Controller as UpcomingRenewalsController;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\DataStore as UpcomingRenewalsDataStore;
 use AdditionalSubscriptionsAnalytics\Analytics\UpcomingRenewals\ReconciliationController;
@@ -151,8 +154,10 @@ final class Plugin {
 	 * @return array<string, string>
 	 */
 	public function register_data_stores( array $data_stores ): array {
-		$data_stores['reports/upcoming-renewals'] = UpcomingRenewalsDataStore::class;
-		$data_stores['report-upcoming-renewals']  = UpcomingRenewalsDataStore::class;
+		$data_stores['reports/upcoming-renewals']        = UpcomingRenewalsDataStore::class;
+		$data_stores['report-upcoming-renewals']         = UpcomingRenewalsDataStore::class;
+		$data_stores['reports/upcoming-renewal-revenue'] = UpcomingRenewalRevenueDataStore::class;
+		$data_stores['report-upcoming-renewal-revenue']  = UpcomingRenewalRevenueDataStore::class;
 
 		return $data_stores;
 	}
@@ -169,6 +174,8 @@ final class Plugin {
 	public function register_rest_controllers( array $controllers ): array {
 		$controllers[] = UpcomingRenewalsController::class;
 		$controllers[] = UpcomingRenewalsStatsController::class;
+		$controllers[] = UpcomingRenewalRevenueController::class;
+		$controllers[] = UpcomingRenewalRevenueStatsController::class;
 
 		return $controllers;
 	}
@@ -191,6 +198,15 @@ final class Plugin {
 			),
 			'path'        => '/wc-analytics/reports/upcoming-renewals',
 			'url'         => '/analytics/upcoming-renewals',
+		);
+		$reports[] = array(
+			'slug'        => 'upcoming-renewal-revenue',
+			'description' => __(
+				'Upcoming subscription renewal revenue.',
+				'additional-subscriptions-analytics'
+			),
+			'path'        => '/wc-analytics/reports/upcoming-renewal-revenue',
+			'url'         => '/analytics/upcoming-renewal-revenue',
 		);
 
 		return $reports;
