@@ -57,3 +57,10 @@ wp-config.php
 # Note: If you wish to whitelist themes,
 # uncomment the next line
 #/wp-content/themes
+.idea/phpunit.xml
+.idea/laravel-idea.xml
+.idea/php.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/php.xml
+.idea/additional-subscriptions-analytics.iml
+/.idea
