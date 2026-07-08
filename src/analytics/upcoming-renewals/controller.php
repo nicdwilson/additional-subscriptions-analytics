@@ -282,6 +282,13 @@ final class Controller extends GenericController implements ExportableInterface 
 	/**
 	 * Get CSV column values for an upcoming renewals report item.
 	 *
+	 * Merchant-controlled free text (product_name, product_sku) is returned raw.
+	 * The Analytics export writer (WooCommerce\Admin\ReportCSVExporter, a
+	 * WC_CSV_Batch_Exporter) escapes every field through
+	 * WC_CSV_Exporter::escape_data(), which neutralises CSV formula injection by
+	 * prefixing values that begin with = + - @ \t \r, so no extra escaping is
+	 * needed here.
+	 *
 	 * @since 0.1.0
 	 *
 	 * @param array<string, mixed> $item Single report item/row.
