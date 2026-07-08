@@ -435,6 +435,75 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test variation rows resolve their own SKU and fall back to the parent SKU.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_resolves_variation_and_parent_fallback_skus(): void {
+		if ( ! \class_exists( '\WC_Product_Variable' ) || ! \class_exists( '\WC_Product_Variation' ) ) {
+			$this->markTestSkipped( 'WooCommerce variable product CRUD is unavailable.' );
+		}
+
+		$variable = $this->create_variable_product(
+			'VAR-PARENT-01',
+			array( 'VAR-CHILD-A', '' )
+		);
+
+		$own_sku_variation_id  = $variable['variations'][0];
+		$fallback_variation_id = $variable['variations'][1];
+
+		$this->seed_subscription(
+			2131,
+			'active',
+			'2026-07-05 00:00:00',
+			$variable['parent'],
+			$own_sku_variation_id,
+			'Variable Coffee',
+			'1',
+			'10'
+		);
+		$this->seed_subscription(
+			2132,
+			'active',
+			'2026-07-06 00:00:00',
+			$variable['parent'],
+			$fallback_variation_id,
+			'Variable Coffee',
+			'1',
+			'10'
+		);
+
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$data = \rest_do_request( $this->get_request( array( 'per_page' => 10 ) ) )->get_data();
+
+		$skus_by_variation = array();
+
+		foreach ( $data as $row ) {
+			$skus_by_variation[ (int) $row['variation_id'] ] = $row['product_sku'];
+		}
+
+		$this->assertSame( 'VAR-CHILD-A', $skus_by_variation[ $own_sku_variation_id ] );
+		$this->assertSame( 'VAR-PARENT-01', $skus_by_variation[ $fallback_variation_id ] );
+	}
+
+	/**
+	 * Test SKU resolution guards against a missing product and non-string SKUs.
+	 *
+	 * @return void
+	 */
+	public function test_get_product_sku_handles_missing_and_non_scalar_values(): void {
+		$controller = new Controller();
+		$method     = new \ReflectionMethod( Controller::class, 'get_product_sku' );
+		$method->setAccessible( true );
+
+		$this->assertSame( '', $method->invoke( $controller, null ) );
+		$this->assertSame( '', $method->invoke( $controller, new \stdClass() ) );
+		$this->assertSame( '', $method->invoke( $controller, new FakeSkuProduct( array( 'unexpected' ) ) ) );
+		$this->assertSame( 'ABC-1', $method->invoke( $controller, new FakeSkuProduct( 'ABC-1' ) ) );
+	}
+
+	/**
 	 * Register the upcoming renewals route if WooCommerce has not already done so.
 	 *
 	 * @return void
@@ -554,6 +623,51 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Create a variable product with variations.
+	 *
+	 * @param string             $parent_sku     Parent product SKU.
+	 * @param array<int, string> $variation_skus Per-variation SKUs; an empty string leaves the SKU unset.
+	 *
+	 * @return array{parent: int, variations: array<int, int>}
+	 */
+	private function create_variable_product( string $parent_sku, array $variation_skus ): array {
+		$parent = new \WC_Product_Variable();
+		$parent->set_name( 'Variable Coffee' );
+
+		if ( '' !== $parent_sku ) {
+			$parent->set_sku( $parent_sku );
+		}
+
+		$attribute = new \WC_Product_Attribute();
+		$attribute->set_name( 'Size' );
+		$attribute->set_options( array( 'Small', 'Large' ) );
+		$attribute->set_visible( true );
+		$attribute->set_variation( true );
+		$parent->set_attributes( array( $attribute ) );
+
+		$parent_id  = (int) $parent->save();
+		$variations = array();
+		$options    = array( 'Small', 'Large' );
+
+		foreach ( \array_values( $variation_skus ) as $index => $variation_sku ) {
+			$variation = new \WC_Product_Variation();
+			$variation->set_parent_id( $parent_id );
+			$variation->set_attributes( array( 'size' => $options[ $index % \count( $options ) ] ) );
+
+			if ( '' !== $variation_sku ) {
+				$variation->set_sku( $variation_sku );
+			}
+
+			$variations[] = (int) $variation->save();
+		}
+
+		return array(
+			'parent'     => $parent_id,
+			'variations' => $variations,
+		);
+	}
+
+	/**
 	 * Seed a subscription and product lookup row.
 	 *
 	 * @param int    $subscription_id       Subscription ID.
@@ -666,5 +780,36 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 			'line_tax'        => '0.00000000',
 			'synced_at_gmt'   => '2026-06-17 00:00:00',
 		);
+	}
+}
+
+/**
+ * Minimal product test double exposing a controllable SKU return value.
+ */
+final class FakeSkuProduct {
+
+	/**
+	 * SKU value to return, deliberately allowed to be a non-scalar for guard tests.
+	 *
+	 * @var mixed
+	 */
+	private mixed $sku;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param mixed $sku SKU value to return from get_sku().
+	 */
+	public function __construct( mixed $sku ) {
+		$this->sku = $sku;
+	}
+
+	/**
+	 * Get the SKU.
+	 *
+	 * @return mixed
+	 */
+	public function get_sku(): mixed {
+		return $this->sku;
 	}
 }
