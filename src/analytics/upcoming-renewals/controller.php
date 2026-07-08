@@ -152,9 +152,11 @@ final class Controller extends GenericController implements ExportableInterface 
 	 * @return \WP_REST_Response
 	 */
 	public function prepare_item_for_response( $report_item, $request ) {
-		$data     = $this->prepare_report_item( $report_item );
-		$response = parent::prepare_item_for_response( $data, $request );
-		$response->add_links( $this->prepare_links( $data ) );
+		$data                = $this->prepare_report_item( $report_item );
+		$product             = $this->get_product_for_item( $data );
+		$data['product_sku'] = $this->get_product_sku( $product );
+		$response            = parent::prepare_item_for_response( $data, $request );
+		$response->add_links( $this->prepare_links( $data, $product ) );
 
 		/**
 		 * Filter a prepared upcoming renewals report item.
@@ -195,6 +197,12 @@ final class Controller extends GenericController implements ExportableInterface 
 				),
 				'product_name'                => array(
 					'description' => __( 'Product name snapshot from the subscription line item.', 'additional-subscriptions-analytics' ),
+					'type'        => 'string',
+					'readonly'    => true,
+					'context'     => array( 'view', 'edit' ),
+				),
+				'product_sku'                 => array(
+					'description' => __( 'Current product or variation SKU, resolved live from the product.', 'additional-subscriptions-analytics' ),
 					'type'        => 'string',
 					'readonly'    => true,
 					'context'     => array( 'view', 'edit' ),
@@ -252,6 +260,7 @@ final class Controller extends GenericController implements ExportableInterface 
 	public function get_export_columns() {
 		$export_columns = array(
 			'product_name'       => __( 'Product title', 'additional-subscriptions-analytics' ),
+			'product_sku'        => __( 'SKU', 'additional-subscriptions-analytics' ),
 			'product_id'         => __( 'Product ID', 'additional-subscriptions-analytics' ),
 			'variation_id'       => __( 'Variation ID', 'additional-subscriptions-analytics' ),
 			'total_qty'          => __( 'Renewal quantity', 'additional-subscriptions-analytics' ),
@@ -283,6 +292,7 @@ final class Controller extends GenericController implements ExportableInterface 
 		$item        = \is_array( $item ) ? $item : (array) $item;
 		$export_item = array(
 			'product_name'       => (string) ( $item['product_name'] ?? '' ),
+			'product_sku'        => $this->get_product_sku( $this->get_product_for_item( $item ) ),
 			'product_id'         => \max( 0, (int) ( $item['product_id'] ?? 0 ) ),
 			'variation_id'       => \max( 0, (int) ( $item['variation_id'] ?? 0 ) ),
 			'total_qty'          => $this->format_quantity( $item['total_qty'] ?? 0 ),
@@ -335,20 +345,15 @@ final class Controller extends GenericController implements ExportableInterface 
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param array<string, float|int|string> $item Prepared report item.
+	 * @param array<string, float|int|string> $item    Prepared report item.
+	 * @param object|null                     $product Optional pre-loaded product to avoid a second lookup.
 	 *
 	 * @return array<string, array<string, string>>
 	 */
-	private function prepare_links( array $item ): array {
-		$product_id = $this->get_linked_product_id( $item );
+	private function prepare_links( array $item, ?object $product = null ): array {
+		$product = $product ?? $this->get_product_for_item( $item );
 
-		if ( 0 === $product_id || ! \function_exists( 'wc_get_product' ) ) {
-			return array();
-		}
-
-		$product = \wc_get_product( $product_id );
-
-		if ( ! \is_object( $product ) || ! \method_exists( $product, 'get_id' ) ) {
+		if ( null === $product ) {
 			return array();
 		}
 
@@ -400,6 +405,54 @@ final class Controller extends GenericController implements ExportableInterface 
 		}
 
 		return \max( 0, (int) ( $item['product_id'] ?? 0 ) );
+	}
+
+	/**
+	 * Load the live product for a report item.
+	 *
+	 * The SKU is resolved from the current product rather than snapshotted into
+	 * the lookup table, so it is always fresh. See
+	 * documentation/DECISION_RECORD_PRODUCT_META.md.
+	 *
+	 * @since 0.9.6
+	 *
+	 * @param array<string, float|int|string> $item Report item (prepared or raw store row).
+	 *
+	 * @return object|null Product object, or null when it cannot be resolved.
+	 */
+	private function get_product_for_item( array $item ): ?object {
+		$product_id = $this->get_linked_product_id( $item );
+
+		if ( 0 === $product_id || ! \function_exists( 'wc_get_product' ) ) {
+			return null;
+		}
+
+		$product = \wc_get_product( $product_id );
+
+		if ( ! \is_object( $product ) || ! \method_exists( $product, 'get_id' ) ) {
+			return null;
+		}
+
+		return $product;
+	}
+
+	/**
+	 * Get the current SKU for a resolved product.
+	 *
+	 * @since 0.9.6
+	 *
+	 * @param object|null $product Product object, or null.
+	 *
+	 * @return string Current SKU, or an empty string when unavailable.
+	 */
+	private function get_product_sku( ?object $product ): string {
+		if ( null === $product || ! \method_exists( $product, 'get_sku' ) ) {
+			return '';
+		}
+
+		$sku = $product->get_sku();
+
+		return \is_scalar( $sku ) ? (string) $sku : '';
 	}
 
 	/**

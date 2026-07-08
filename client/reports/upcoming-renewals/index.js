@@ -155,6 +155,10 @@ const getRows = ( data = [] ) =>
 				value: productName,
 			},
 			{
+				display: decodeEntities( item.product_sku || '' ),
+				value: item.product_sku,
+			},
+			{
 				display: item.product_id,
 				value: item.product_id,
 			},

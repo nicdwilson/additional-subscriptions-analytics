@@ -52,7 +52,8 @@ and repair/regeneration tools.
 - New **Upcoming Renewals** report under WooCommerce -> Analytics.
 - Future-oriented date-range selection interpreted against the subscription next
   payment date.
-- Sortable table: Product, Total qty, # subscriptions, Recurring total.
+- Sortable table: Product, Total qty, # subscriptions, Recurring total. A SKU
+  column is also shown (and exported), resolved live from the current product.
 - CSV export via the Analytics export flow.
 - Admin-visible table sync state, including last backfill/update time and
   actionable notices if analytics tables need regeneration.

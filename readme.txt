@@ -74,6 +74,11 @@ include shipping, tax, fees, discounts, retries, or different statuses.
 
 == Upgrade Notice ==
 
+= 0.9.6 =
+Adds a SKU column to the Upcoming renewal products report and CSV export. SKUs
+are read live from each product, so they always reflect the current value with
+no resync required.
+
 = 0.9.5 =
 Adds the Upcoming renewal revenue report with daily charting and selectable
 table grouping.
@@ -95,6 +100,10 @@ Initial private prerelease. The plugin creates two lookup tables and performs a
 non-destructive initial backfill. No manual migration steps are required.
 
 == Changelog ==
+
+= 0.9.6 =
+* Added a SKU column to the Upcoming renewal products report table and CSV export.
+* Resolved the SKU live from each product at read time so it never goes stale; no lookup-table schema change or resync is required.
 
 = 0.9.5 =
 * Added Upcoming renewal revenue under WooCommerce > Analytics.

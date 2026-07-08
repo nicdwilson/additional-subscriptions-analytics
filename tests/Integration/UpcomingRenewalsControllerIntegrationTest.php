@@ -299,14 +299,139 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'Product title', $columns['product_name'] );
+		$this->assertSame( 'SKU', $columns['product_sku'] );
 		$this->assertSame( 'Renewal quantity', $columns['total_qty'] );
 		$this->assertSame( 'Export Coffee', $row['product_name'] );
+		$this->assertArrayHasKey( 'product_sku', $row );
 		$this->assertSame( 15, $row['product_id'] );
 		$this->assertSame( 3, $row['variation_id'] );
 		$this->assertSame( '2.50000000', $row['total_qty'] );
 		$this->assertSame( 4, $row['subscription_count'] );
 		$this->assertSame( '20.00', $row['recurring_total'] );
 		$this->assertSame( 'USD', $row['currency'] );
+	}
+
+	/**
+	 * Test the export row resolves the current SKU from the live product.
+	 *
+	 * @return void
+	 */
+	public function test_controller_export_resolves_current_product_sku(): void {
+		$product_id = $this->create_product( 'Export SKU Coffee', 'EXP-COF-01' );
+		$controller = new Controller();
+
+		$row = $controller->prepare_item_for_export(
+			array(
+				'product_name' => 'Export SKU Coffee',
+				'product_id'   => $product_id,
+				'variation_id' => 0,
+			)
+		);
+
+		$this->assertSame( 'EXP-COF-01', $row['product_sku'] );
+	}
+
+	/**
+	 * Test the report row exposes the current product SKU.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_returns_current_product_sku(): void {
+		$product_id = $this->create_product( 'SKU Coffee Subscription', 'RET-SKU-01' );
+
+		$this->seed_subscription(
+			2101,
+			'active',
+			'2026-07-05 00:00:00',
+			$product_id,
+			0,
+			'SKU Coffee Subscription',
+			'2',
+			'20'
+		);
+
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$response = \rest_do_request( $this->get_request() );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertCount( 1, $data );
+		$this->assertSame( 'RET-SKU-01', $data[0]['product_sku'] );
+	}
+
+	/**
+	 * Test the SKU reflects live product edits without re-syncing lookup rows.
+	 *
+	 * This is the freshness guarantee: the SKU is resolved from the current
+	 * product at read time, not snapshotted into the lookup table.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_sku_reflects_live_product_updates(): void {
+		$product_id = $this->create_product( 'Fresh SKU Coffee', 'FRESH-SKU-01' );
+
+		$this->seed_subscription(
+			2111,
+			'active',
+			'2026-07-05 00:00:00',
+			$product_id,
+			0,
+			'Fresh SKU Coffee',
+			'1',
+			'10'
+		);
+
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$first = \rest_do_request( $this->get_request() )->get_data();
+		$this->assertSame( 'FRESH-SKU-01', $first[0]['product_sku'] );
+
+		// Change the product SKU without touching the lookup table.
+		$product = \wc_get_product( $product_id );
+		$product->set_sku( 'FRESH-SKU-02' );
+		$product->save();
+
+		$second = \rest_do_request( $this->get_request() )->get_data();
+		$this->assertSame( 'FRESH-SKU-02', $second[0]['product_sku'] );
+	}
+
+	/**
+	 * Test a deleted product yields a blank SKU while the name snapshot survives.
+	 *
+	 * @return void
+	 */
+	public function test_rest_endpoint_returns_blank_sku_for_deleted_product(): void {
+		$this->seed_subscription(
+			2121,
+			'active',
+			'2026-07-05 00:00:00',
+			424242,
+			0,
+			'Archived SKU Subscription',
+			'1',
+			'10'
+		);
+
+		\wp_set_current_user( $this->create_manager_user() );
+
+		$data = \rest_do_request( $this->get_request() )->get_data();
+
+		$this->assertCount( 1, $data );
+		$this->assertSame( 'Archived SKU Subscription', $data[0]['product_name'] );
+		$this->assertSame( '', $data[0]['product_sku'] );
+	}
+
+	/**
+	 * Test the report item schema advertises the product SKU property.
+	 *
+	 * @return void
+	 */
+	public function test_controller_schema_advertises_product_sku(): void {
+		$schema = ( new Controller() )->get_item_schema();
+
+		$this->assertArrayHasKey( 'product_sku', $schema['properties'] );
+		$this->assertSame( 'string', $schema['properties']['product_sku']['type'] );
 	}
 
 	/**
@@ -405,10 +530,11 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 	 * Create a simple WooCommerce product.
 	 *
 	 * @param string $name Product name.
+	 * @param string $sku  Optional product SKU.
 	 *
 	 * @return int Product ID.
 	 */
-	private function create_product( string $name ): int {
+	private function create_product( string $name, string $sku = '' ): int {
 		if ( ! \class_exists( '\WC_Product_Simple' ) ) {
 			$this->markTestSkipped( 'WooCommerce product CRUD is unavailable.' );
 		}
@@ -417,6 +543,11 @@ final class UpcomingRenewalsControllerIntegrationTest extends \WP_UnitTestCase {
 		$product->set_name( $name );
 		$product->set_regular_price( '10' );
 		$product->set_price( '10' );
+
+		if ( '' !== $sku ) {
+			$product->set_sku( $sku );
+		}
+
 		$product->save();
 
 		return (int) $product->get_id();

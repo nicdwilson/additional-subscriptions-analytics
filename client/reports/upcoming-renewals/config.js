@@ -314,6 +314,11 @@ export const getHeaders = () => [
 		isSortable: true,
 	},
 	{
+		label: __( 'SKU', 'additional-subscriptions-analytics' ),
+		key: 'product_sku',
+		isLeftAligned: true,
+	},
+	{
 		label: __( 'Product ID', 'additional-subscriptions-analytics' ),
 		key: 'product_id',
 		isSortable: true,
